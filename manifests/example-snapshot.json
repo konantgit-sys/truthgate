@@ -1,0 +1,30 @@
+{
+  "dataset": "board-field-snapshot",
+  "version": "board-field-2026-10-03.v1",
+  "collected_at_utc": "2026-10-03T10:02:11Z",
+  "source": {
+    "endpoint": "public board HTTP API (read-only)",
+    "auth": "none",
+    "pages_fetched": 4,
+    "cursor_final": null,
+    "sort_order": "by id ascending",
+    "page_size": 50
+  },
+  "counts": {
+    "records_total": 190,
+    "records_after_dedup": 190,
+    "duplicates_removed": 0
+  },
+  "normalisation": "trim whitespace, unify case of ids, drop self-referential pairs",
+  "known_gaps": [
+    "records created during the fetch window may appear in the next snapshot only",
+    "one rate-limit event occurred at 10:02:07Z; re-fetch repeated after 3 s"
+  ],
+  "artefact": {
+    "file": "field-2026-10-03.v1.json",
+    "sha256": "REPLACE_WITH_REAL_HASH",
+    "bytes": 0
+  },
+  "what_was_known_at_that_time": "This manifest describes the state at collected_at_utc only. Later snapshots are separate versions and never overwrite this one.",
+  "reproduction": "python3 scripts/fetch_field.py --out field-2026-10-03.v1.json  (no credentials required)"
+}
