@@ -25,6 +25,10 @@ facts.json — результат прогона, обязательные по�
 Любое пропущенное поле или число в тексте, которого нет в numbers → FAIL.
 """
 import argparse, json, re, sys
+from urllib.parse import urlparse
+
+# Хосты, которым можно отдавать ключ борды. Список, а не подстрока url.
+ALLOWED_KEY_HOSTS = frozenset({'getpostingboard.dev'})
 
 ARGS_OFFLINE = False
 
@@ -163,6 +167,7 @@ def main():
                      '(url/path/expect) — слово «проверено» контролем не считается.')
     else:
         url = live.get('url'); path = live.get('path')
+        skip_live = False
         if not url or not path:
             fails.append('CONTROL.LIVE НЕПОЛОН: нужны url и path (точка доступа к значению).')
         else:
@@ -174,20 +179,39 @@ def main():
                 fails.append("CONTROL.LIVE: auth=%r неизвестен — поддерживаются 'none' и 'board'."
                              % live.get('auth'))
             if live.get('auth') == 'board':
-                try:
-                    import os
-                    kf = os.environ.get('GATE_BOARD_KEY_FILE', '')
-                    key = open(kf).read().strip()
-                    hdrs['Authorization'] = 'Bearer ' + key
-                    hdrs['X-Agent-Protocol'] = 'getpostingboard/1'
-                except OSError:
-                    fails.append('CONTROL.LIVE: нет ключа борды для авторизованного контроля.')
+                # 04.10.2026, находка внешнего проверяющего (claude-sonnet-scout,
+                # #73581, прочитано в коде, не запуском): url контроля берётся из
+                # файла фактов, а файл фактов пишет тот, кто проверяет черновик.
+                # Значит чужой url уводил бы ключ борды на произвольный хост.
+                # Ключ отдаётся только своему хосту, сверка — по имени хоста,
+                # а не по подстроке в url (иначе `getpostingboard.dev.evil.tld`
+                # проходил бы как свой).
+                host = (urlparse(live.get('url') or '').hostname or '').lower()
+                if host not in ALLOWED_KEY_HOSTS:
+                    # Не «отправим без заголовка», а НЕ ОТПРАВИМ ВООБЩЕ: смысл
+                    # находки в том, что исходящий запрос на чужой хост сам по
+                    # себе недопустим, даже без ключа в заголовке.
+                    fails.append('CONTROL.LIVE: auth=board для хоста %r запрещён — '
+                                 'ключ не отправлен, запрос не выполнен (разрешены: %s).'
+                                 % (host or '?', ', '.join(sorted(ALLOWED_KEY_HOSTS))))
+                    skip_live = True
+                else:
+                    try:
+                        import os
+                        kf = os.environ.get('GATE_BOARD_KEY_FILE', '')
+                        key = open(kf).read().strip()
+                        hdrs['Authorization'] = 'Bearer ' + key
+                        hdrs['X-Agent-Protocol'] = 'getpostingboard/1'
+                    except OSError:
+                        fails.append('CONTROL.LIVE: нет ключа борды для авторизованного контроля.')
             # User-Agent обязателен: периметр борды отвечает Cloudflare error-1010
             # на отсутствующий UA и на Python-urllib/*. Контроль, падающий на этом,
             # блокировал публикацию верного текста (2026-09-18, черновик ua403) —
             # то есть барьер сам попадал в ту ловушку, о которой сообщал.
             hdrs.setdefault('User-Agent', 'curl/8.0 (agent-conformance-check)')
             try:
+                if skip_live:
+                    raise ValueError('live-контроль не выполняется: хост не разрешён')
                 body = urllib.request.urlopen(
                     urllib.request.Request(url, headers=hdrs), timeout=25).read().decode('utf-8', 'replace')
                 obj = json.loads(body)
