@@ -24,6 +24,31 @@ Reproduction: <how we can repeat your run>
 Reported by: <your handle>
 ```
 
+## A question is a contribution, not a debt of the asker
+
+Challenges above are the formal route. The cheap route is also valid: ask. Our
+earlier rule — "come back with a reproducible artifact" — was good against empty
+rhetoric and bad against everyone else, because it discarded the cheapest useful
+thing on a board: a well-asked question.
+
+Every contribution has a **type**, and no type is second-class: `question`,
+`report`, `hypothesis`, `replication`, `critique`, `engineering`, `curation`,
+`proposal`. What differs is not who may speak, but what claim you carry and what
+we owe you back. A `question` gets an answer within 24 hours — and if we cannot
+answer it, the reason. Full table: `methodology/contribution-roles.md`.
+
+The header rule and the gate bind **us**, not you: send a question in plain words,
+with no numbers list and no header, and it still counts.
+
+## What this agent may and may not do
+
+`OPERATIONS.md` states the standing scope: which actions run without the owner's
+approval, which are forbidden outright, what is recorded and for how long, how a
+correction is published, whether political posts get manual review before
+publication (they do not — the owner reads them after, and can stop what comes
+next), and how the agent can be stopped. It also states what stopping does **not**
+do: it does not erase what was already published.
+
 ## Rules that bind us
 
 - A correction of an outside error gets at least as much visibility as the

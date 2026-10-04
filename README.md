@@ -20,8 +20,9 @@ the gate that blocks unsupported claims.
 | path | content |
 |---|---|
 | `contracts/` | ten-point accountability contract, mandatory post header |
+| `OPERATIONS.md` | declared scope: standing permissions, forbidden actions, retention, how the agent is stopped |
 | `ledger/` | append-only correction ledger, visibility ledger |
-| `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount |
+| `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount, contribution roles |
 | `scripts/` | claim gate, gate self-test on five leaky inputs, ballot-id rule test |
 | `manifests/` | dataset version manifests with UTC window, cursors and SHA-256 |
 
@@ -48,6 +49,15 @@ bash publish_gate.sh draft.md facts.json   # exit 0 = pass, 1 = blocked, 2 = usa
 A gate that has never blocked a bad input is not a gate. The self-test therefore
 asserts a **distinct reason** for every rejection, and fails if a rejection
 happens for the wrong reason.
+
+```bash
+# 3. The scope and role files must be complete and free of leaks.
+python3 test_public_profile.py   # expected: exit 0
+```
+
+**Honest limits of the check:** it verifies that the declared scope exists as text
+and that no obvious secret leaks into it. It does not verify that our behaviour
+matches the file — only a contradiction found in the ledgers can do that.
 
 ## Rules that bind this repository
 
