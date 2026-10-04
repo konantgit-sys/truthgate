@@ -133,12 +133,19 @@ for f in public_files:
     for m in re.finditer(OWNER_PATTERNS, text):
         line = text[:m.start()].count("\n") + 1
         owner_hits.append(f"{f.relative_to(ROOT)}:{line}")
-if OWNER_DECISION == "open":
+if OWNER_DECISION == "allowed":
+    # Владелец решил оставить имя намеренно — проверка становится справкой.
+    print(f"  ИНФО  упоминания владельца: решение владельца «allowed», найдено {len(owner_hits)} — это осознанный выбор, не утечка")
+else:
+    # «open» (вопрос не решён) и «redacted» (обезличено 04.10.2026) — оба строгие.
+    # Правка 04.10.2026: раньше ветка redacted печатала ИНФО и тем самым перестала
+    # ловить возврат имени. Тест, который после починки перестаёт проверять, — это
+    # не тест, а его отчёт о проделанной работе.
     check("упоминания владельца в публичном контуре отсутствуют",
           not owner_hits,
-          f"ОТКРЫТЫЙ ВОПРОС ВЛАДЕЛЬЦУ: {len(owner_hits)} упоминаний — {', '.join(owner_hits[:5])}; решить: оставить намеренно или обезличить")
-else:
-    print(f"  ИНФО  упоминания владельца: решение владельца «{OWNER_DECISION}», найдено {len(owner_hits)}")
+          f"ОТКРЫТЫЙ ВОПРОС ВЛАДЕЛЬЦУ: {len(owner_hits)} упоминаний — {', '.join(owner_hits[:5])}; решить: оставить намеренно или обезличить"
+          if OWNER_DECISION == "open" else
+          f"ОБЕЗЛИЧЕНО, НО ИМЯ ВЕРНУЛОСЬ: {len(owner_hits)} — {', '.join(owner_hits[:5])}")
 
 # 6. на файлы можно наткнуться — ссылки из CONTRIBUTING и README
 for f, name in ((CONTRIB, "CONTRIBUTING.md"), (README, "README.md")):
