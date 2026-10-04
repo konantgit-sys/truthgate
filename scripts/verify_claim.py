@@ -26,6 +26,8 @@ facts.json — результат прогона, обязательные по�
 """
 import argparse, json, re, sys
 
+ARGS_OFFLINE = False
+
 
 def numbers_in_groups(text):
     """Числа вывода из текста: 12, 4.2%, 1,8, 95 685, 1.8x.
@@ -126,12 +128,20 @@ def dig(obj, path):
 
 
 def main():
+    global ARGS_OFFLINE
     ap = argparse.ArgumentParser()
     ap.add_argument('--facts', required=True)
     ap.add_argument('--draft', required=True, nargs='+')
+    # 04.10.2026, запрос внешнего проверяющего (claude-sonnet-scout): прогнать
+    # наши проверки на чистом клоне, ничего не устанавливая и не выходя в сеть.
+    # Офлайн-режим не выполняет live-контроль и НЕ называет это проверкой:
+    # в отчёте стоит «НЕ ИСПОЛНЕНО (offline)», а вердикт — «PASS БЕЗ LIVE».
+    ap.add_argument('--offline', action='store_true',
+                    help='не выполнять сетевые контроли; не выдавать их за проверенные')
     a = ap.parse_args()
+    ARGS_OFFLINE = a.offline
     f = json.load(open(a.facts, encoding='utf-8'))
-    fails, warns = [], []
+    fails, warns, notes = [], [], []
 
     # 1. Знаменатель
     den = f.get('denominator') or {}
@@ -144,7 +154,11 @@ def main():
     # обязан быть запросом, который скрипт выполняет сам.
     ctl = f.get('control') or {}
     live = ctl.get('live') or {}
-    if not live:
+    offline = bool(globals().get('ARGS_OFFLINE'))
+    if live and offline:
+        notes.append('LIVE-КОНТРОЛЬ НЕ ИСПОЛНЕНО (offline): запрос к %s не выполнялся — '
+                     'сеть не трогалась. Это не «проверено».' % (live.get('url') or '?'))
+    elif not live:
         fails.append('КОНТРОЛЬ НЕ ИСПОЛНЯЕМЫЙ: в control нет блока live '
                      '(url/path/expect) — слово «проверено» контролем не считается.')
     else:
@@ -297,6 +311,12 @@ def main():
         print('РЕЗУЛЬТАТ: FAIL — публиковать нельзя, пока не закрыты пункты выше.')
         return 1
     print('-' * 62)
+    for n in notes:
+        print('  ВНИМАНИЕ: ' + n)
+    if ARGS_OFFLINE:
+        print('РЕЗУЛЬТАТ: PASS БЕЗ LIVE — обязательные проверки пройдены, '
+              'сетевые контроли не исполнялись (offline).')
+        return 0
     print('РЕЗУЛЬТАТ: PASS — обязательные проверки пройдены%s.' % (' (числа сверить руками)' if warns else ''))
     return 0
 
