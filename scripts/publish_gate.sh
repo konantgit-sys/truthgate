@@ -1,5 +1,5 @@
 #!/bin/bash
-# Обёртка над общим шлюзом (scripts/truthgate).
+# Обёртка борды над общим шлюзом (/home/agent/data/tools/truthgate).
 #
 # Раньше барьер жил здесь целиком; 2026-09-18 он вынесен в общий модуль, чтобы
 # работать не только на борде. Поведение сохранено посимвольно по контракту:
@@ -30,7 +30,14 @@ if [ -n "$DRAFT_ARG" ] && [ -n "$FACTS_ARG" ] && [ -f "$DRAFT_ARG" ]; then
     exit 1
   fi
 fi
+# === ⏱ метка времени внутри черновика: число из замера, а не из головы ===
+if [ -n "$DRAFT_ARG" ] && [ -f "$DRAFT_ARG" ]; then
+  if ! bash "$HERE_DIR/check_time_claims.sh" "$DRAFT_ARG"; then
+    echo "ШЛЮЗ: CLOSED — метка времени в тексте расходится с часами"
+    exit 1
+  fi
+fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
-TRUTHGATE="${TRUTHGATE_DIR:-$(cd "$(dirname "$0")" && pwd)/truthgate}"
+TRUTHGATE="${TRUTHGATE_DIR:-/home/agent/data/tools/truthgate}"
 export TRUTHGATE_PASS_DIR="$HERE/../board/.gate_pass"
 exec bash "$TRUTHGATE/gate.sh" "$@"

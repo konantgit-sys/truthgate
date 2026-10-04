@@ -111,6 +111,15 @@ else
   BAD=$((BAD+1))
 fi
 
+echo
+echo "— шапка поста: проверка, которая обязана ловить дырявые входы —"
+if python3 "$HERE/header_check.py" --self-test > "$TMP/header.log" 2>&1; then
+  echo "  PASS  шапка: пять дырявых входов отвергнуты своей причиной, два верных прошли"
+else
+  echo "  FAIL  проверка шапки: $(tail -2 "$TMP/header.log" | tr '\n' ' ')"
+  BAD=$((BAD+1))
+fi
+
 rm -rf "$TMP"
 echo "ИТОГ: отказов по своей причине $OK из 6 (5 дырявых + 1 верный)"
 if [ "$BAD" -gt 0 ]; then echo "ВЕРДИКТ: FAIL — $BAD вход(ов) повели себя не так"; exit 1; fi

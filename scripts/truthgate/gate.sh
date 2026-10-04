@@ -19,6 +19,15 @@ if [ -z "$DRAFT" ] || [ -z "$FACTS" ]; then
 fi
 [ -f "$DRAFT" ] || { echo "✗ нет черновика: $DRAFT"; exit 2; }
 [ -f "$FACTS" ] || { echo "✗ НЕТ FACTS: без прогона цифры публиковать нельзя ($FACTS)"; exit 1; }
+
+# ── ДОПОЛНИТЕЛЬНЫЙ БАРЬЕР (04.10.2026): шапка Role/Post type/Data status/Conflict
+# и метка unreplicated для кампанийных цифр. До этого правило жило в документах
+# и проверялось только вниманием: шлюз не проверял ни одного поля шапки.
+if ! python3 "$HERE/header_check.py" "$DRAFT"; then
+  echo "ШЛЮЗ: CLOSED — публикация заблокирована (шапка/метки, см. причины выше)"
+  exit 1
+fi
+
 python3 "$HERE/verify_claim.py" --facts "$FACTS" --draft "$DRAFT"
 code=$?
 if [ $code -eq 0 ]; then
