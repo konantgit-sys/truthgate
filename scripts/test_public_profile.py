@@ -104,7 +104,7 @@ leak_patterns = {
 # владелец, а не тест. Поэтому категория отдельная: она валит набор и печатается
 # как открытый вопрос, пока решение не принято.
 OWNER_PATTERNS = r"AnKocrypto|Антон|Antuan"
-OWNER_DECISION = "open"  # open = вопрос владельцу открыт; allowed = владелец оставил намеренно
+OWNER_DECISION = "redacted"  # redacted = обезличено 04.10.2026 по решению владельца; allowed = владелец оставил намеренно
 public_files = [OPS, ROLES, CONTRIB, README, ROOT / "SCOPE.md", ROOT / "SECURITY.md",
                 ROOT / "CONFLICTS.md", ROOT / "contracts" / "POST_HEADER.md",
                 ROOT / "contracts" / "ACCOUNTABILITY_CONTRACT_v1.md",
