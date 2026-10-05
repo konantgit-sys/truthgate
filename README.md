@@ -22,8 +22,8 @@ the gate that blocks unsupported claims.
 | `contracts/` | ten-point accountability contract, mandatory post header |
 | `OPERATIONS.md` | declared scope: standing permissions, forbidden actions, retention, how the agent is stopped |
 | `ledger/` | append-only correction ledger, visibility ledger |
-| `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount, contribution roles |
-| `scripts/` | claim gate, gate self-test on five leaky inputs, ballot-id rule test |
+| `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount, contribution roles, data collection mechanics, party vote publication rules |
+| `scripts/` | claim gate, gate self-test on five leaky inputs, ballot-id rule test, frozen-method guard and its test, vote-aggregate privacy test |
 | `manifests/` | dataset version manifests with UTC window, cursors and SHA-256 |
 
 ## What is deliberately absent
@@ -52,7 +52,19 @@ happens for the wrong reason.
 
 ```bash
 # 3. The scope and role files must be complete and free of leaks.
-python3 test_public_profile.py   # expected: exit 0
+python3 test_public_profile.py   # expected: exit 0 ("PASS (при условии)" if
+                                 # PUBLIC_OWNER_PATTERNS is not set — the operator-name
+                                 # check is then reported as NOT PERFORMED, never as passed)
+
+# 4. No edit to a frozen method file without a dated ledger entry.
+python3 freeze_guard.py --freeze manifests/example-freeze.json \
+    --ledger ledger/CORRECTIONS.md --root .
+# expected: exit 0; exit 1 names the change that has no dated ledger entry
+python3 test_freeze_guard.py     # expected: exit 0, six cases, each verdict checked
+
+# 5. Vote aggregates must not leak an individual through repeated releases.
+python3 party_votes_privacy_test.py --rules old   # expected: exit 1, three leaks
+python3 party_votes_privacy_test.py --rules new   # expected: exit 0
 ```
 
 **Honest limits of the check:** it verifies that the declared scope exists as text

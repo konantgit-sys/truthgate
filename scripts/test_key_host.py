@@ -28,9 +28,13 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DASH = os.path.dirname(HERE)
+TREE = os.path.dirname(DASH)
+TREE = os.path.dirname(DASH)
+TREE = os.path.dirname(DASH)
 # Гоняем ЭТАЛОН, а не производную копию: в публичной копии путь к ключу
 # обезличен по замыслу, и проверка «ключ ушёл своему хосту» там непроверяема.
-GATE = '/home/agent/data/tools/truthgate/verify_claim.py'
+# Эталон ищется относительно дерева: абсолютная раскладка в публичном файле не нужна
+GATE = os.environ.get('GATE_REFERENCE', os.path.join(TREE, 'tools', 'truthgate', 'verify_claim.py'))
 
 SEEK = ('Authorization', 'X-Agent-Protocol', 'getpostingboard', 'Bearer')
 

@@ -22,6 +22,7 @@
 
 Код возврата: 0 — всё на месте, 1 — есть провал.
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -34,6 +35,7 @@ README = ROOT / "README.md"
 
 fails: list[str] = []
 passes: list[str] = []
+unmeasured: list[str] = []
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -91,7 +93,7 @@ leak_patterns = {
     "открытый ключ": r"BEGIN [A-Z ]*PRIVATE KEY",
     "bearer-заголовок со значением": r"[Bb]earer\s+[A-Za-z0-9._\-]{16,}",
     "присвоение токена/пароля": r"(?:token|secret|password|passwd|api[_-]?key)\s*[:=]\s*[\"']?[A-Za-z0-9._\-]{8,}",
-    "приватный путь нашего узла": r"/home/agent|/workspace|/proc/self",
+    "приватный путь узла": r"/home/[a-z0-9_-]+/|/workspace|/proc/self",
     "внутренний адрес": r"\.svc(?:\.cluster)?\.local|mcp-gateway|v2bot\.svc",
     "электронная почта": r"[\w.+-]+@[\w-]+\.[a-z]{2,}",
     "ip-адрес": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
@@ -103,7 +105,10 @@ leak_patterns = {
 # раскрывать оператора. Это противоречие двух наших же правил, и решает его
 # владелец, а не тест. Поэтому категория отдельная: она валит набор и печатается
 # как открытый вопрос, пока решение не принято.
-OWNER_PATTERNS = r"AnKocrypto|Антон|Antuan"
+# Образцы имени оператора НЕ хранятся в публичном файле: список читается из
+# окружения. Пустой список = проверка имени не выполняется и помечается как
+# не проведённая, а не как пройденная.
+OWNER_PATTERNS = os.environ.get('PUBLIC_OWNER_PATTERNS', '')
 OWNER_DECISION = "redacted"  # redacted = обезличено 04.10.2026 по решению владельца; allowed = владелец оставил намеренно
 public_files = [OPS, ROLES, CONTRIB, README, ROOT / "SCOPE.md", ROOT / "SECURITY.md",
                 ROOT / "CONFLICTS.md", ROOT / "contracts" / "POST_HEADER.md",
@@ -128,7 +133,16 @@ for f in public_files:
 
 # 5b. упоминания владельца — отдельная категория
 owner_hits = []
+if not OWNER_PATTERNS:
+    # Образцы имени оператора не публикуются в этом файле: список читается из
+    # окружения. Пустой список = проверка НЕ ПРОВЕДЕНА. Печатаем это отдельной
+    # категорией, чтобы «не проверяли» нельзя было прочитать как «чисто».
+    unmeasured.append(
+        "упоминания владельца в публичном контуре: образцы имени не заданы "
+        "(PUBLIC_OWNER_PATTERNS пуст) — проверка НЕ ПРОВЕДЕНА, не считается пройденной")
 for f in public_files:
+    if not OWNER_PATTERNS:
+        break
     text = f.read_text(encoding="utf-8", errors="replace")
     for m in re.finditer(OWNER_PATTERNS, text):
         line = text[:m.start()].count("\n") + 1
@@ -158,9 +172,19 @@ check("редактура названа отсутствующей, а не у�
       re.search(r"no pre-publication editorial review|There is \*\*no", ops, re.I) is not None,
       "нет прямого признания отсутствия предварительной редактуры")
 
-print(f"\nИТОГ: проверок {len(passes) + len(fails)}, провалов {len(fails)}")
+print(f"\nИТОГ: проверок {len(passes) + len(fails)}, провалов {len(fails)}, "
+      f"не проведено {len(unmeasured)}")
+for u in unmeasured:
+    print("  НЕ ПРОВЕДЕНО: " + u)
 if fails:
     print("ВЕРДИКТ: FAIL — " + "; ".join(fails[:4]))
     sys.exit(1)
+if unmeasured:
+    # Не проведённая проверка не выдаётся ни за пройденную, ни за провал: она
+    # названа отдельной строкой и выходит в итог. Молчание здесь было бы тем
+    # самым «asserted observability», от которого мы уходим.
+    print("ВЕРДИКТ: PASS (при условии) — обязательные разделы и запреты на месте, "
+          "но проверка имени оператора НЕ ПРОВЕДЕНА: образцы не заданы в окружении")
+    sys.exit(0)
 print("ВЕРДИКТ: PASS — оба файла на месте, обязательные разделы и запреты названы, утечек нет, ссылки есть")
 sys.exit(0)

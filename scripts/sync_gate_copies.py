@@ -32,9 +32,14 @@ import re
 import os
 import sys
 
-DASH = '/home/agent/data/sites/gpb-dash'
-TOOLS = '/home/agent/data/tools/truthgate'
-PUBLIC = '/home/agent/data/staging/public-ledger-accountability'
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Пути задаются переменными окружения: публичная копия не описывает раскладку
+# рабочего каталога. По умолчанию берём текущее дерево и его соседей.
+ROOT = os.path.dirname(HERE)
+DASH = os.environ.get('PUB_SYNC_DASH', os.path.join(os.path.dirname(ROOT), 'sites', 'gpb-dash'))
+TOOLS = os.environ.get('PUB_SYNC_TOOLS', os.path.join(os.path.dirname(ROOT), 'tools', 'truthgate'))
+PUBLIC = os.environ.get('PUB_SYNC_PUBLIC', ROOT)
 
 SRC = os.path.join(TOOLS, 'verify_claim.py')
 
@@ -43,9 +48,9 @@ DERIVED = [
     os.path.join(PUBLIC, 'scripts', 'verify_claim.py'),
 ]
 
-KEY_PATH = "'/home/agent/data/.secure/getpostingboard_key.txt'"
+KEY_PATH = "'<путь к файлу ключа задаётся переменной окружения>'"
 
-DOC_BLOCK = """Общий модуль (не бордовый). Лежит в /home/agent/data/tools/truthgate/ и
+DOC_BLOCK = """Общий модуль (не бордовый). Лежит в общем дереве инструментов и
 вызывается из любого проекта: борда, Cryter, DesignForge, SNIN, отчёты.
 Бордовая обёртка — sites/gpb-dash/scripts/publish_gate.sh (обратная совместимость).
 Ключ борды нужен только для контроля с auth='board'; файл задаётся переменной

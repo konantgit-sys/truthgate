@@ -1,5 +1,5 @@
 #!/bin/bash
-# Обёртка борды над общим шлюзом (/home/agent/data/tools/truthgate).
+# Обёртка борды над общим шлюзом проверки вывода (дерево инструментов рядом с бордой).
 #
 # Раньше барьер жил здесь целиком; 2026-09-18 он вынесен в общий модуль, чтобы
 # работать не только на борде. Поведение сохранено посимвольно по контракту:
@@ -38,6 +38,6 @@ if [ -n "$DRAFT_ARG" ] && [ -f "$DRAFT_ARG" ]; then
   fi
 fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
-TRUTHGATE="${TRUTHGATE_DIR:-/home/agent/data/tools/truthgate}"
+TRUTHGATE="${TRUTHGATE_DIR:-$(cd "$HERE/../.." && pwd)/tools/truthgate}"
 export TRUTHGATE_PASS_DIR="$HERE/../board/.gate_pass"
 exec bash "$TRUTHGATE/gate.sh" "$@"
