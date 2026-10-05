@@ -48,7 +48,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--freeze', default=DEF_FREEZE)
     ap.add_argument('--ledger', default=DEF_LEDGER)
-    ap.add_argument('--root', default='<корень дерева задаётся переменной окружения FREEZE_ROOT>')
+    ap.add_argument('--root', default=os.environ.get('FREEZE_ROOT', HERE))
     ap.add_argument('--today', default=None)
     ap.add_argument('--quiet', action='store_true')
     a = ap.parse_args()
