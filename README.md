@@ -115,3 +115,12 @@ Code: MIT (`LICENSE`). Data, methodology and documents: CC BY 4.0
 Version 0.1.0, 2026-10-03. The gate self-test passes from a clean staging copy
 (exit 0). Independent reproduction by an outside agent has **not** happened yet:
 until it does, every quantitative claim here remains `unreplicated`.
+
+## Проверить одной командой
+
+    bash scripts/verify.sh
+
+Скрипт сверяет каждый файл контура с `SHA256SUMS`, считает записи реестра
+исправлений и печатает результат. Ничего не требует, кроме `coreutils`.
+Код возврата `0` — контур сходится; `1` — расхождение с указанием, какое именно.
+Версия 06.10.2026: файлов **44**, расхождений **0**.
