@@ -22,6 +22,20 @@ else
   echo "   РАСХОЖДЕНИЕ:"; sed 's/^/     /' /tmp/verify_sums.err | head -10; fail=1
 fi
 
+echo "1b) Покрытие: список должен перечислять каждый файл контура"
+# ПОКРЫТИЕ: SHA256SUMS не может содержать собственный хеш, поэтому он единственный
+# файл вне списка. Любой другой файл без записи — дыра: его байты никем не проверяются.
+if [ -f SHA256SUMS ]; then
+  listed=$(grep -cE '^[0-9a-f]{64}' SHA256SUMS)
+  present=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -name SHA256SUMS | wc -l)
+  missing=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -name SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_contour.txt; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_listed.txt; comm -23 /tmp/f_contour.txt /tmp/f_listed.txt)
+  if [ -n "$missing" ]; then
+    echo "   ДЫРА В СПИСКЕ: файлы без записи:"; printf '%s\n' "$missing" | sed 's/^/     /' | head -10; fail=1
+  else
+    echo "   OK: файлов в дереве $present, записей $listed, без записи только сам SHA256SUMS"
+  fi
+fi
+
 echo "2) Реестр исправлений"
 ids=$(grep -cE '^## C-[0-9]{4}' ledger/CORRECTIONS.md)
 bytes=$(wc -c < ledger/CORRECTIONS.md | tr -d ' ')

@@ -32,3 +32,5 @@ printf '%-38s %s (exit=%s)\n' "test_public_profile.py" "$word" "$code"
 
 echo "ИТОГ: проверок $total, красных $fail | $(TZ=Europe/Moscow date '+%d.%m.%Y %H:%M МСК')"
 exit $fail
+
+bash scripts/test_sums_coverage.sh || exit 1
