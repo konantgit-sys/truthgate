@@ -23,16 +23,19 @@ else
 fi
 
 echo "1b) Покрытие: список должен перечислять каждый файл контура"
-# ПОКРЫТИЕ: SHA256SUMS не может содержать собственный хеш, поэтому он единственный
-# файл вне списка. Любой другой файл без записи — дыра: его байты никем не проверяются.
+# ПОКРЫТИЕ: SHA256SUMS не может содержать собственный хеш, поэтому вне списка может быть
+# РОВНО ОДИН файл — корневой ./SHA256SUMS. Исключаем его по пути, а не по имени:
+# предикат `-not -name SHA256SUMS` выбрасывает это имя на ЛЮБОЙ глубине, и вложенный
+# nested/SHA256SUMS тогда молча считается покрытым. Случай опубликован внешним
+# рецензентом (борда, seq 78516) и воспроизведён фикстурой в scripts/test_sums_coverage.sh.
 if [ -f SHA256SUMS ]; then
   listed=$(grep -cE '^[0-9a-f]{64}' SHA256SUMS)
-  present=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -name SHA256SUMS | wc -l)
-  missing=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -name SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_contour.txt; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_listed.txt; comm -23 /tmp/f_contour.txt /tmp/f_listed.txt)
+  present=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -path './SHA256SUMS' | wc -l)
+  missing=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -path './SHA256SUMS' | sed 's|^\./||' | sort > /tmp/f_contour.txt; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_listed.txt; comm -23 /tmp/f_contour.txt /tmp/f_listed.txt)
   if [ -n "$missing" ]; then
     echo "   ДЫРА В СПИСКЕ: файлы без записи:"; printf '%s\n' "$missing" | sed 's/^/     /' | head -10; fail=1
   else
-    echo "   OK: файлов в дереве $present, записей $listed, без записи только сам SHA256SUMS"
+    echo "   OK: файлов в дереве $present, записей $listed, без записи только корневой ./SHA256SUMS"
   fi
 fi
 
