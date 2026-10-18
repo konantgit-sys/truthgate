@@ -66,22 +66,31 @@ DOC_REPLACEMENT = """Этот файл — копия рабочего барь�
 
 def build(src_text):
     t = src_text
-    if DOC_BLOCK not in t:
+    DOC_RE = re.compile(r'Общий модуль \(не бордовый\)\..*?работает полностью автономно\.', re.S)
+    if not DOC_RE.search(t):
         raise SystemExit('sync_gate_copies: не найден блок docstring для замены — '
                          'эталон изменился, скрипт надо поправить вместе с ним')
-    t = t.replace(DOC_BLOCK, DOC_REPLACEMENT, 1)
+    # 18.10.2026: сверка по регулярке, а не по точной строке. Эталон получил новый
+    # путь узла в первой строке блока, точная строка перестала совпадать, и скрипт
+    # отказывался синхронизировать: производные копии оставались старыми, а тест
+    # гонял именно их. Замена — весь блок «Общий модуль … автономно.» целиком.
+    t = DOC_RE.sub(DOC_REPLACEMENT, t, count=1)
     # Путь к нашему ключу не должен уезжать в производные копии.
     # 04.10.2026: сверка по точной строке ломалась от сдвига отступа (эталон
     # получил новую ветку и путь уехал на четыре пробела глубже) — скрипт
     # отказывался синхронизировать, производная копия оставалась старой,
     # а самотест при этом гонял именно её. Теперь сверка по образцу строки,
     # а не по её точному тексту с отступами.
-    t = re.sub(r"kf = os\.environ\.get\('GATE_BOARD_KEY_FILE',\s*%s\)"
-               % re.escape(KEY_PATH),
+    # 18.10.2026: сверка по образцу, а не по заглушке. В эталоне путь записан
+    # реальной строкой и разбит переносом — прежняя подстановка его не находила,
+    # и реальный путь узла уезжал в публичную копию. Теперь: replace любой
+    # строки в этом аргументе, затем жёсткая проверка на остаток.
+    t = re.sub(r"kf = os\.environ\.get\('GATE_BOARD_KEY_FILE',\s*'[^']*'\s*\)",
                "kf = os.environ.get('GATE_BOARD_KEY_FILE', '')", t)
-    if KEY_PATH in t:
-        raise SystemExit('sync_gate_copies: путь к ключу остался в производной копии — '
-                         'правку надо доделать, публиковать это нельзя')
+    for leak in ('/home/agent', '.secure', 'getpostingboard_key'):
+        if leak in t:
+            raise SystemExit('sync_gate_copies: в производной копии осталось %r — '
+                             'утечка раскладки/ключа, публиковать нельзя' % leak)
     return t
 
 
@@ -94,6 +103,21 @@ def main():
     want = build(src)
     bad = []
     for path in DERIVED:
+        # 18.10.2026: производная копия импортирует reasons (словарь кодов отказа)
+        # из СВОЕГО каталога. Без этого файла импорт падал, verify_claim молча
+        # откатывался на код 1, и самопроверка барьера видела «все причины = 1»
+        # при зелёном тесте — ровно тот дефект, который коды и должны были убрать.
+        rs = os.path.join(os.path.dirname(path), 'reasons.py')
+        want_r = open(os.path.join(TOOLS, 'reasons.py'), encoding='utf-8').read()
+        cur_r = open(rs, encoding='utf-8').read() if os.path.exists(rs) else ''
+        if cur_r != want_r:
+            if a.check:
+                bad.append(rs)
+                print(f'РАСХОЖДЕНИЕ {rs} — словарь кодов не совпадает с эталоном')
+            else:
+                with open(rs, 'w', encoding='utf-8') as f:
+                    f.write(want_r)
+                print(f'СИНХРОНИЗИРОВАНО {rs}')
         cur = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
         if cur == want:
             print(f'OK    {path} — совпадает с эталоном')
@@ -105,6 +129,7 @@ def main():
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(want)
             print(f'СИНХРОНИЗИРОВАНО {path}')
+
     if a.check and bad:
         print('ВЕРДИКТ: FAIL — у барьера несколько версий; внешняя проверка слабее нашей')
         return 1

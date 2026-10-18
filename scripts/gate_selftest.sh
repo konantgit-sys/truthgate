@@ -22,6 +22,21 @@ OK=0; BAD=0
 # дырявый вход проходит, значит проверка держалась на сети, а не на коде.
 OFFLINE="${GATE_SELFTEST_OFFLINE:-0}"
 
+# 18.10.2026: версия контракта берётся ЖИВЬЁМ. Прибитая 1.17.3 держала «верный
+# вход» красным каждый раз, когда борда обновлялась, — тест ловил свою память,
+# а не барьер. Нет сети — уходим в офлайн-режим и говорим об этом прямо.
+LIVE_VER="$(python3 - <<'PYV' 2>/dev/null || true
+import json, urllib.request
+try:
+    r = urllib.request.Request('https://getpostingboard.dev/openapi.json',
+                               headers={'User-Agent': 'curl/8.0', 'Accept': 'application/json'})
+    print(json.loads(urllib.request.urlopen(r, timeout=25).read().decode('utf-8','replace'))['info']['version'])
+except Exception:
+    pass
+PYV
+)"
+if [ -z "$LIVE_VER" ]; then OFFLINE=1; echo "ВНИМАНИЕ: живая версия контракта не получена — режим offline"; fi
+
 gate() {  # gate <draft> <facts> → печатает код, пишет вывод в $2.log
   if [ "$OFFLINE" = "1" ]; then
     python3 "$HERE/verify_claim.py" --facts "$2" --draft "$1" --offline > "$2.log" 2>&1
@@ -37,8 +52,8 @@ base_facts() {  # базовые согласованные факты, вход
  "denominator": {"проверяемых строк": 3},
  "control": {"объект":"версия контракта борды",
    "live":{"url":"https://getpostingboard.dev/openapi.json","path":"info.version",
-           "expect":"1.17.3","auth":"none"},
-   "значение":"1.17.3","проверено":true},
+           "expect":"__LIVE_VER__","auth":"none"},
+   "значение":"__LIVE_VER__","проверено":true},
  "numbers": [3,1,17],
  "alternative": {"гипотеза":"страница пуста, потому что данных нет",
                  "опровергает":"страница пуста, потому что запрос не прошёл"},
@@ -46,10 +61,17 @@ base_facts() {  # базовые согласованные факты, вход
  "window":"25.09.2026"
 }
 JSON
+  python3 - "$1" "$LIVE_VER" <<'PYSUB'
+import json,sys
+p,v=sys.argv[1],sys.argv[2]
+d=json.load(open(p,encoding='utf-8'))
+d['control']['live']['expect']=v; d['control']['значение']=v
+json.dump(d,open(p,'w',encoding='utf-8'),ensure_ascii=False)
+PYSUB
 }
 
-case_check() {  # case_check <имя> <ожидаемая причина в выводе>
-  NAME="$1"; WANT="$2"
+case_check() {  # case_check <имя> <ожидаемая причина в выводе> <ожидаемый код>
+  NAME="$1"; WANT="$2"; WANT_CODE="$3"
   if [ "$OFFLINE" = "1" ] && [ "$NAME" = "stale" ]; then
     WANT="LIVE-КОНТРОЛЬ НЕ ИСПОЛНЕНО (offline)"
   fi
@@ -70,15 +92,15 @@ case_check() {  # case_check <имя> <ожидаемая причина в вы
     echo "  $NAME: офлайн — не проверяется по определению, пометка на месте: $WANT"
     OK=$((OK+1)); return
   fi
-  if [ "$CODE" != "1" ]; then
-    echo "  $NAME: ПРОВАЛ — барьер пропустил (код $CODE, ожидался 1)"; BAD=$((BAD+1)); return
+  if [ "$CODE" != "$WANT_CODE" ]; then
+    echo "  $NAME: ПРОВАЛ — код $CODE, ожидался $WANT_CODE (причина проверяется отдельно)"; BAD=$((BAD+1)); return
   fi
   if ! grep -qaF "$WANT" "$TMP/$NAME.json.log"; then
     echo "  $NAME: отказ НЕ ПО ТОЙ ПРИЧИНЕ (ждали «$WANT»)"
     grep -aE '^✗' "$TMP/$NAME.json.log" | head -2 | sed 's/^/      /'
     BAD=$((BAD+1)); return
   fi
-  echo "  $NAME: код 1, причина своя — $WANT"; OK=$((OK+1))
+  echo "  $NAME: код $WANT_CODE, причина своя — $WANT"; OK=$((OK+1))
 }
 
 echo "САМОПРОВЕРКА БАРЬЕРА (5 дырявых входов × своя причина + 1 верный вход)"
@@ -93,7 +115,7 @@ else echo "  good: ПРОВАЛ — верный вход отвергнут (к
 # 1. Протечка числа: числа нет в замерах.
 base_facts "$TMP/leak.json"
 printf 'В замере 3 строки, а ещё 7 взято из головы.\n' > "$TMP/leak.md"
-case_check leak "ЧИСЛА ВНЕ ПРОГОНА"
+case_check leak "ЧИСЛА ВНЕ ПРОГОНА" 16
 
 # 2. Нет знаменателя: не сказано, от чего считаются доли.
 base_facts "$TMP/noden.json"
@@ -102,7 +124,7 @@ import json,sys
 d=json.load(open(sys.argv[1])); d['denominator']={}; json.dump(d,open(sys.argv[1],'w'),ensure_ascii=False)
 PY
 printf 'Доли посчитаны, база не названа.\n' > "$TMP/noden.md"
-case_check noden "НЕТ ЗНАМЕНАТЕЛЯ"
+case_check noden "НЕТ ЗНАМЕНАТЕЛЯ" 13
 
 # 3. Контроль неисполняемый: слово «проверено» вместо запроса.
 base_facts "$TMP/nolive.json"
@@ -112,7 +134,7 @@ d=json.load(open(sys.argv[1])); d['control']={'объект':'версия','з�
 json.dump(d,open(sys.argv[1],'w'),ensure_ascii=False)
 PY
 printf 'Контроль объявлен словом, а не запросом.\n' > "$TMP/nolive.md"
-case_check nolive "КОНТРОЛЬ НЕ ИСПОЛНЯЕМЫЙ"
+case_check nolive "КОНТРОЛЬ НЕ ИСПОЛНЯЕМЫЙ" 14
 
 # 4. Нет альтернативы: не сказано, что опровергло бы вывод.
 base_facts "$TMP/noalt.json"
@@ -121,17 +143,17 @@ import json,sys
 d=json.load(open(sys.argv[1])); d.pop('alternative',None); json.dump(d,open(sys.argv[1],'w'),ensure_ascii=False)
 PY
 printf 'Вывод без конкурирующего объяснения.\n' > "$TMP/noalt.md"
-case_check noalt "НЕТ АЛЬТЕРНАТИВЫ"
+case_check noalt "НЕТ АЛЬТЕРНАТИВЫ" 20
 
 # 5. Локально верно, глобально устарело: все числа в прогоне, но живое значение уехало.
 base_facts "$TMP/stale.json"
 python3 - "$TMP/stale.json" << 'PY'
 import json,sys
-d=json.load(open(sys.argv[1])); d['control']['live']['expect']='1.17.2'
+d=json.load(open(sys.argv[1])); d['control']['live']['expect']='0.0.1-stale'
 json.dump(d,open(sys.argv[1],'w'),ensure_ascii=False)
 PY
 printf 'Полная страница, все числа сходятся, версия объявлена прошлой.\n' > "$TMP/stale.md"
-case_check stale "CONTROL.LIVE РАСХОДИТСЯ"
+case_check stale "CONTROL.LIVE РАСХОДИТСЯ" 15
 
 echo
 echo "— правило номера бюллетеня: вакансия emergency:<t>:<n> не должна быть невидимой —"

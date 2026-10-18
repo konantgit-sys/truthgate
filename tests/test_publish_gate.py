@@ -2,13 +2,24 @@
 """Тест барьера публикации: проверка, ни разу не заблокировавшая плохой вход,
 проверкой не является.
 
-Каждый случай — намеренно дырявый черновик, и ожидание у каждого своё:
-  1. число, которого нет в facts → FAIL (барьер обязан остановить);
-  2. все числа объяснены → PASS (барьер не должен блокировать честный вывод);
-  3. контроль без блока live → FAIL (слово «проверено» контролем не считается);
-  4. live с expect, расходящимся с живым ответом → FAIL;
-  5. несуществующий файл черновика → FAIL, а не тихий PASS;
-  6. пустой черновик → FAIL (нечего публиковать).
+Каждый случай — намеренно дырявый черновик, и ожидание у каждого СВОЁ, по коду:
+  1. число, которого нет в facts        → 16 NUMBERS_NOT_IN_FACTS;
+  2. все числа объяснены                → 0  PASS (барьер не мешает честному выводу);
+  3. черновик без шапки                 → 12 HEADER;
+  4. контроль без блока live            → 14 CONTROL_NOT_EXECUTABLE;
+  5. live с expect, расходящимся с живым ответом → 15 CONTROL_LIVE;
+  6. несуществующий файл черновика      → 10 DRAFT_MISSING;
+  7. пустой черновик (пробелы)          → 17 EMPTY_DRAFT;
+  8. нет файла фактов                   → 11 FACTS_MISSING;
+  9. вызов без аргументов               → 2  USAGE;
+ 10. в черновике числа, а numbers пуст  → 21 NO_NUMBERS_IN_FACTS;
+ 11. нет знаменателя                    → 13 DENOMINATOR;
+ 12. нет альтернативы                   → 20 NO_ALTERNATIVE.
+
+Правило 18.10.2026: «код не ноль» проверкой причины НЕ является. До этой правки
+кейсы 4, 6, 7 проходили и тогда, когда шлюз падал совсем на другом (например, на
+отсутствии шапки), — то есть тест подтверждал не то, что называл. Теперь ожидается
+точный код из tools/truthgate/reasons.py, и совпадение кода обязательно.
 
 Код возврата шлюза смотрим напрямую, без pipe.
 """
@@ -31,7 +42,8 @@ def run_gate(draft, facts):
     return r.returncode, (r.stdout or '') + (r.stderr or '')
 
 
-def case(name, draft_text, facts_obj, expect_zero, facts_present=True):
+def case(name, draft_text, facts_obj, expect_code, facts_present=True, argv=None):
+    """expect_code: точный ожидаемый код возврата (0 = PASS)."""
     global passed
     d = tempfile.mkdtemp()
     draft = os.path.join(d, 'd.md')
@@ -40,14 +52,17 @@ def case(name, draft_text, facts_obj, expect_zero, facts_present=True):
         open(draft, 'w', encoding='utf-8').write(draft_text)
     if facts_present and facts_obj is not None:
         json.dump(facts_obj, open(facts, 'w', encoding='utf-8'), ensure_ascii=False)
-    code, out = run_gate(draft, facts)
-    ok = (code == 0) if expect_zero else (code != 0)
-    print(('  ok   ' if ok else '  FAIL ') + '%s (код %d, ждали %s)'
-          % (name, code, '0' if expect_zero else 'не 0'))
+    if argv is not None:
+        r = subprocess.run(['bash', GATE] + argv, capture_output=True, text=True)
+        code, out = r.returncode, (r.stdout or '') + (r.stderr or '')
+    else:
+        code, out = run_gate(draft, facts)
+    ok = (code == expect_code)
+    print(('  ok   ' if ok else '  FAIL ') + '%s (код %d, ждали %d)'
+          % (name, code, expect_code))
     if not ok:
         failed.append(name)
         print('       вывод шлюза: %s' % out.strip().split('\n')[-1][:200])
-        passed -= 0
     else:
         passed += 1
 
@@ -92,32 +107,46 @@ HDR = ('**Role:** data maintainer | **Post type:** report | **Data status:** Mea
 
 # 1. число вне прогона
 f1 = json.loads(json.dumps(BASE_FACTS))
-case('число вне прогона останавливает публикацию', HDR + 'В тексте есть 777, которого нет в прогоне.', f1, False)
+case('число вне прогона останавливает публикацию', HDR + 'В тексте есть 777, которого нет в прогоне.', f1, 16)
 
 # 2. честный вывод проходит
 f2 = json.loads(json.dumps(BASE_FACTS))
-case('все числа объяснены — публикация проходит', HDR + 'В этом тесте 6 проверок.', f2, True)
+case('все числа объяснены — публикация проходит', HDR + 'В этом тесте 6 проверок.', f2, 0)
 
 # 2b. барьер обязан закрываться и на отсутствии шапки — иначе «проходит» выше
 # ничего не значит: тест обязан проверять барьер в ОБЕ стороны.
 f2b = json.loads(json.dumps(BASE_FACTS))
-case('черновик без шапки закрывается', 'В этом тесте 6 проверок.', f2b, False)
+case('черновик без шапки закрывается', 'В этом тесте 6 проверок.', f2b, 12)
 
 # 3. контроль без live
 f3 = json.loads(json.dumps(BASE_FACTS))
 f3['control'] = {'объект': 'тест', 'значение': 'придумано', 'проверено': True}
-case('контроль без live-блока отвергается', HDR + 'В этом тесте 6 проверок.', f3, False)
+case('контроль без live-блока отвергается', HDR + 'В этом тесте 6 проверок.', f3, 14)
 
 # 4. live расходится
 f4 = json.loads(json.dumps(BASE_FACTS))
 f4['control']['live']['expect'] = '0.0.1'
-case('расхождение с живым ответом отвергается', 'В этом тесте 6 проверок.', f4, False)
+case('расхождение с живым ответом отвергается', HDR + 'В этом тесте 6 проверок.', f4, 15)
 
 # 5. нет файла черновика
-case('отсутствующий черновик отвергается', None, dict(BASE_FACTS), False)
+case('отсутствующий черновик отвергается', None, dict(BASE_FACTS), 10)
 
 # 6. пустой черновик
-case('пустой черновик отвергается', '   \n  ', dict(BASE_FACTS), False)
+case('пустой черновик отвергается', '   \n  ', dict(BASE_FACTS), 17)
+
+# ── кейсы 8-12: каждая причина отказа различима по коду ──────────────────────
+case('нет файла фактов', HDR + 'В этом тесте 6 проверок.', dict(BASE_FACTS), 11, facts_present=False)
+
+case('вызов без аргументов', None, None, 2, facts_present=False, argv=[])
+
+f21 = json.loads(json.dumps(BASE_FACTS)); f21['numbers'] = []
+case('числа в тексте, а numbers пуст', HDR + 'В этом тесте 6 проверок.', f21, 21)
+
+f13 = json.loads(json.dumps(BASE_FACTS)); f13['denominator'] = {}
+case('нет знаменателя', HDR + 'В этом тесте 6 проверок.', f13, 13)
+
+f20 = json.loads(json.dumps(BASE_FACTS)); f20['alternative'] = {}
+case('нет альтернативы', HDR + 'В этом тесте 6 проверок.', f20, 20)
 
 print()
 print('проверок теста: %d | провалов: %d' % (passed + len(failed), len(failed)))

@@ -21,7 +21,7 @@ the gate that blocks unsupported claims.
 |---|---|
 | `contracts/` | ten-point accountability contract, mandatory post header |
 | `OPERATIONS.md` | declared scope: standing permissions, forbidden actions, retention, how the agent is stopped |
-| `ledger/` | append-only correction ledger (86 entries, latest C-0129), visibility ledger |
+| `ledger/` | append-only correction ledger (88 entries, latest C-0131), visibility ledger |
 | `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount, contribution roles, data collection mechanics, party vote publication rules |
 | `scripts/` | claim gate, gate self-test on five leaky inputs, timestamp claim check, ballot-id rule test, frozen-method guard and its test, vote-aggregate privacy test |
 | `tests/` | regression suite for the gate: seven cases, each rejection checked for its own reason, one clean pass required |
@@ -132,3 +132,32 @@ until it does, every quantitative claim here remains `unreplicated`.
 исправлений и печатает результат. Ничего не требует, кроме `coreutils`.
 Код возврата `0` — контур сходится; `1` — расхождение с указанием, какое именно.
 Версия 06.10.2026: файлов **44**, расхождений **0**.
+
+## Exit codes (с 18.10.2026)
+
+Раньше любой отказ давал код 1, и «тест прошёл» означало лишь «код не ноль» —
+кейс мог упасть совсем по другой причине, чем та, которую называл. Теперь
+причина различима машинно. Полная таблица — `python3 tools/truthgate/reasons.py --table`.
+
+| код | причина | что значит |
+|----:|---------|------------|
+| 0 | — | PASS |
+| 2 | USAGE | не переданы аргументы |
+| 10 | DRAFT_MISSING | нет файла черновика |
+| 11 | FACTS_MISSING | нет файла фактов |
+| 12 | HEADER | шапка Role/Post type/Data status/Conflict или метки |
+| 13 | DENOMINATOR | нет знаменателя (базы расчёта) |
+| 14 | CONTROL_NOT_EXECUTABLE | контроль без live-блока (слово «проверено» не считается) |
+| 15 | CONTROL_LIVE | живой контроль не ответил / расходится / пуст |
+| 16 | NUMBERS_NOT_IN_FACTS | в тексте числа, которых нет в прогоне |
+| 17 | EMPTY_DRAFT | пустой черновик |
+| 18 | RENDER_MISMATCH | текст не совпал с рендером из фактов |
+| 19 | TIME_MISMATCH | метка времени расходится с часами |
+| 20 | NO_ALTERNATIVE | не сформулировано конкурирующее объяснение |
+| 21 | NO_NUMBERS_IN_FACTS | в черновике числа, а numbers пуст |
+| 22 | TEMPLATE_PLACEHOLDER | остались неподставленные `{{ключи}}` |
+| 23 | NO_SOURCE | нет обязательного поля источника/окна |
+
+Тесты обязаны требовать свой код: `tests/test_publish_gate.py` — 12 кейсов,
+`tools/truthgate/tests/test_gate.py` — 21 кейс, `scripts/gate_selftest.sh` — 6 входов.
+

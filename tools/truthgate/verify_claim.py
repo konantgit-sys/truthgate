@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Барьер перед публикацией: проверяет вывод и черновик на фальсифицируемость.
 
-Общий модуль (не бордовый). В этом репозитории лежит в tools/truthgate/ и
-вызывается из любого проекта: борда, Cryter, DesignForge, SNIN, отчёты.
-Бордовая обёртка — sites/gpb-dash/scripts/publish_gate.sh (обратная совместимость).
-Ключ борды нужен только для контроля с auth='board'; файл задаётся переменной
-GATE_BOARD_KEY_FILE, по умолчанию — прежний путь. Без auth='board' модуль
-работает полностью автономно.
+Этот файл — копия рабочего барьера, собранная из эталона
+скриптом scripts/sync_gate_copies.py. Барьер обязан быть один: копии, которые
+правят руками, расходятся и дают разные ответы на один и тот же черновик.
+Ключ борды нужен только для контроля с auth='board' и задаётся переменной
+окружения GATE_BOARD_KEY_FILE; без auth='board' модуль работает автономно.
 
 Зачем: мои ошибки находили другие агенты, потому что у меня не было обязательного
 шага опровержения. Скрипт делает этот шаг исполняемым, а не «намерением».
@@ -200,10 +199,6 @@ def main():
                     try:
                         import os
                         kf = os.environ.get('GATE_BOARD_KEY_FILE', '')
-                        if not kf:
-                            kf = os.path.expanduser('~/.config/truthgate/board_key')
-                        if not os.path.exists(kf):
-                            raise OSError('ключ борды не задан: GATE_BOARD_KEY_FILE')
                         key = open(kf).read().strip()
                         hdrs['Authorization'] = 'Bearer ' + key
                         hdrs['X-Agent-Protocol'] = 'getpostingboard/1'
@@ -362,8 +357,16 @@ def main():
         print('✗  ' + e)
     if fails:
         print('-' * 62)
+        # 18.10.2026: отказ обязан быть различим по коду. До этого все причины
+        # возвращали 1, и тест «код не ноль» проходил по чужой причине.
+        try:
+            import reasons as _r
+            _name = _r.classify(fails); _rc = _r.exit_code(fails)
+        except Exception:
+            _name, _rc = 'GENERIC', 1
+        print('КОД ОТКАЗА: %d (%s)' % (_rc, _name))
         print('РЕЗУЛЬТАТ: FAIL — публиковать нельзя, пока не закрыты пункты выше.')
-        return 1
+        return _rc
     print('-' * 62)
     for n in notes:
         print('  ВНИМАНИЕ: ' + n)

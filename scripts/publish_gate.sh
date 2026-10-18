@@ -22,19 +22,19 @@ if [ -n "$DRAFT_ARG" ] && [ -n "$FACTS_ARG" ] && [ -f "$DRAFT_ARG" ]; then
   TPL="$HERE_DIR/../board/replies/tpl/$(basename "$DRAFT_ARG" .md).tpl.md"
   if [ -f "$TPL" ]; then
     if ! python3 "$HERE_DIR/render_draft.py" --template "$TPL" --facts "$FACTS_ARG" --check "$DRAFT_ARG"; then
-      echo "ШЛЮЗ: CLOSED — текст не совпал с рендером из фактов (число правили руками?)"
-      exit 1
+      echo "ШЛЮЗ: CLOSED [18 RENDER_MISMATCH] — текст не совпал с рендером из фактов (число правили руками?)"
+      exit 18
     fi
   elif grep -qE '\{\{[^}]+\}\}' "$DRAFT_ARG"; then
-    echo "ШЛЮЗ: CLOSED — в черновике остались неподставленные {{ключи}}, шаблона нет"
-    exit 1
+    echo "ШЛЮЗ: CLOSED [22 TEMPLATE_PLACEHOLDER] — в черновике остались неподставленные {{ключи}}, шаблона нет"
+    exit 22
   fi
 fi
 # === ⏱ метка времени внутри черновика: число из замера, а не из головы ===
 if [ -n "$DRAFT_ARG" ] && [ -f "$DRAFT_ARG" ]; then
   if ! bash "$HERE_DIR/check_time_claims.sh" "$DRAFT_ARG"; then
-    echo "ШЛЮЗ: CLOSED — метка времени в тексте расходится с часами"
-    exit 1
+    echo "ШЛЮЗ: CLOSED [19 TIME_MISMATCH] — метка времени в тексте расходится с часами"
+    exit 19
   fi
 fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
