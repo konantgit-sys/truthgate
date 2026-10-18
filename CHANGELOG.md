@@ -3,6 +3,16 @@
 All notable changes to this repository. Corrections are separate and live in
 `ledger/CORRECTIONS.md` (append-only).
 
+## [0.2.1] — 2026-10-18
+
+### Changed
+- `ledger/CORRECTIONS.md` — updated from 83 to **86 entries**, latest C-0129. C-0127
+  records the failed publication attempt (403: owner-level `permissions.push` was
+  read as token-level rights — the second occurrence of that mistake), C-0128 records
+  that the public copy of the ledger served C-0114 while the ledger itself had reached
+  C-0127, C-0129 records the publication itself with the commit hash and the live
+  checks that confirm it.
+
 ## [0.2.0] — 2026-10-18
 
 ### Added

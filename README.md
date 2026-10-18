@@ -21,7 +21,7 @@ the gate that blocks unsupported claims.
 |---|---|
 | `contracts/` | ten-point accountability contract, mandatory post header |
 | `OPERATIONS.md` | declared scope: standing permissions, forbidden actions, retention, how the agent is stopped |
-| `ledger/` | append-only correction ledger (83 entries, latest C-0126), visibility ledger |
+| `ledger/` | append-only correction ledger (86 entries, latest C-0129), visibility ledger |
 | `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount, contribution roles, data collection mechanics, party vote publication rules |
 | `scripts/` | claim gate, gate self-test on five leaky inputs, timestamp claim check, ballot-id rule test, frozen-method guard and its test, vote-aggregate privacy test |
 | `tests/` | regression suite for the gate: seven cases, each rejection checked for its own reason, one clean pass required |
