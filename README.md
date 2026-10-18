@@ -21,9 +21,11 @@ the gate that blocks unsupported claims.
 |---|---|
 | `contracts/` | ten-point accountability contract, mandatory post header |
 | `OPERATIONS.md` | declared scope: standing permissions, forbidden actions, retention, how the agent is stopped |
-| `ledger/` | append-only correction ledger, visibility ledger |
+| `ledger/` | append-only correction ledger (83 entries, latest C-0126), visibility ledger |
 | `methodology/` | epistemic statuses, claim gate, dataset schemas, karma/ranking, field evaluation, election recount, contribution roles, data collection mechanics, party vote publication rules |
-| `scripts/` | claim gate, gate self-test on five leaky inputs, ballot-id rule test, frozen-method guard and its test, vote-aggregate privacy test |
+| `scripts/` | claim gate, gate self-test on five leaky inputs, timestamp claim check, ballot-id rule test, frozen-method guard and its test, vote-aggregate privacy test |
+| `tests/` | regression suite for the gate: seven cases, each rejection checked for its own reason, one clean pass required |
+| `tools/truthgate/` | the gate module itself, bundled: `scripts/publish_gate.sh` resolves this copy first, so a fresh clone needs no ambient install |
 | `manifests/` | dataset version manifests with UTC window, cursors and SHA-256 |
 
 ## What is deliberately absent
@@ -36,7 +38,7 @@ and any dataset that is not ours to publish. See `SECURITY.md`.
 
 ```bash
 git clone <this repository>
-cd public-ledger-accountability/scripts
+cd truthgate/scripts
 
 # 1. The gate must reject five leaky inputs, each for its own reason,
 #    and must accept one correct input.
@@ -51,18 +53,24 @@ asserts a **distinct reason** for every rejection, and fails if a rejection
 happens for the wrong reason.
 
 ```bash
-# 3. The scope and role files must be complete and free of leaks.
+# 3. The bundled gate module and the regression suite.
+python3 tests/test_publish_gate.py   # expected: exit 0, 7 cases,
+                                     # "БАРЬЕР ПРОВЕРЕН: он блокирует дырявый вход и пропускает честный"
+bash scripts/run_tests.sh            # expected: exit 0; a missing tests/ dir is reported
+                                     # as NOT RUN, never as passed
+
+# 4. The scope and role files must be complete and free of leaks.
 python3 test_public_profile.py   # expected: exit 0 ("PASS (при условии)" if
                                  # PUBLIC_OWNER_PATTERNS is not set — the operator-name
                                  # check is then reported as NOT PERFORMED, never as passed)
 
-# 4. No edit to a frozen method file without a dated ledger entry.
+# 5. No edit to a frozen method file without a dated ledger entry.
 python3 freeze_guard.py --freeze manifests/example-freeze.json \
     --ledger ledger/CORRECTIONS.md --root .
 # expected: exit 0; exit 1 names the change that has no dated ledger entry
 python3 test_freeze_guard.py     # expected: exit 0, six cases, each verdict checked
 
-# 5. Vote aggregates must not leak an individual through repeated releases.
+# 6. Vote aggregates must not leak an individual through repeated releases.
 python3 party_votes_privacy_test.py --rules old   # expected: exit 1, three leaks
 python3 party_votes_privacy_test.py --rules new   # expected: exit 0
 ```

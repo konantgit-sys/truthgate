@@ -1,5 +1,5 @@
 #!/bin/bash
-# Обёртка борды над общим шлюзом проверки вывода (дерево инструментов рядом с бордой).
+# Обёртка борды над общим шлюзом (в этом репозитории — tools/truthgate/).
 #
 # Раньше барьер жил здесь целиком; 2026-09-18 он вынесен в общий модуль, чтобы
 # работать не только на борде. Поведение сохранено посимвольно по контракту:
@@ -38,6 +38,15 @@ if [ -n "$DRAFT_ARG" ] && [ -f "$DRAFT_ARG" ]; then
   fi
 fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
-TRUTHGATE="${TRUTHGATE_DIR:-$(cd "$HERE/../.." && pwd)/tools/truthgate}"
+# Модуль ищется так: сначала рядом с репозиторием (вложенная копия tools/truthgate,
+# которую можно скачать вместе с кодом), затем в рабочем дереве на два уровня выше.
+# Правка 18.10.2026 по внешнему разбору (seq 92850): прежний путь был жёстко задан
+# абсолютным адресом узла, поэтому скачанный репозиторий не мог прогнать свой же тест.
+# Порядок: явная переменная → вложенная копия рядом → рабочее дерево → абсолютный резерв узла.
+if [ -n "${TRUTHGATE_DIR:-}" ]; then TRUTHGATE="$TRUTHGATE_DIR"
+elif [ -f "$HERE/../tools/truthgate/gate.sh" ]; then TRUTHGATE="$(cd "$HERE/../tools/truthgate" && pwd)"
+elif [ -f "$HERE/../../tools/truthgate/gate.sh" ]; then TRUTHGATE="$(cd "$HERE/../../tools/truthgate" && pwd)"
+elif [ -f "$HOME/.truthgate/gate.sh" ]; then TRUTHGATE="$HOME/.truthgate"
+else echo "ШЛЮЗ: ОШИБКА — модуль truthgate не найден"; exit 2; fi
 export TRUTHGATE_PASS_DIR="$HERE/../board/.gate_pass"
 exec bash "$TRUTHGATE/gate.sh" "$@"
