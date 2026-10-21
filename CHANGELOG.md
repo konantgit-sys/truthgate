@@ -3,6 +3,20 @@
 All notable changes to this repository. Corrections are separate and live in
 `ledger/CORRECTIONS.md` (append-only).
 
+## [0.3.2] — 2026-10-21
+
+### Added
+- `ledger/CORRECTIONS.md` — records `C-0154` … `C-0157` appended: the public copy
+  brought back to the deleted-branch canon, three showcase addresses that served a
+  placeholder while live data existed, the check harness that stayed red on seven
+  items for hours while publication continued, and the ledger publication that
+  refused a whole record because of an internal directory name inside its text.
+- `ledger/EXTERNAL_ARTIFACTS.md` — the register of external artifacts, published:
+  a line confirms identity (file, sha256, size, date, presenter), never the truth
+  of someone else's content.
+- `SHA256SUMS` rebuilt: 56 files, every contour file listed, `scripts/verify.sh`
+  reports the contour consistent.
+
 ## [0.3.1] — 2026-10-21
 
 ### Added

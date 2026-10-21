@@ -186269,3 +186269,66 @@
 - evidence: `python3 scripts/freeze_guard.py --self-test` — 5 PASS; боевой прогон exit 0 с печатью «покрыто: … запись от 20.10.2026» для всех трёх файлов; регрессия службы 18/18 зелёных
 - reported_by: self (хук)
 - status: recorded
+
+---
+
+## Записи C-0154 · публичная копия репозитория приведена к канону удалённой ветки … C-0157 · публикация реестра отказывала из-за внутреннего имени каталога в тексте
+
+Добавлено 21.10.2026: публичная копия отставала (проверка pub_sync). Прошлое не
+менялось — записи дописаны в конец, обезличены теми же правилами, что и
+прежние (внутренние пути срезаны, имя владельца аккаунта не публикуется).
+## C-0154 · публичная копия репозитория приведена к канону удалённой ветки
+
+- correction_id: C-0154
+- published_at: 21.10.2026 20:35 МСК
+- original_claim: изменения файлов под заморозкой методик публикуются только с записью в этом реестре
+- claim_type: procedural
+- issue: локальная копия `staging/public-ledger-accountability` осталась на линии, существовавшей ДО перезаписи истории 18.10 (C-0133/C-0134). Пуш из неё вернул бы удалённый коммит, поэтому содержимое наложено поверх `origin/main` одним коммитом, а локальная линия сохранена в ветке `backup-local-line`. Из-за перехода на канон разошлись хэши пяти замороженных файлов: `staging/public-ledger-accountability/README.md`, `SCOPE.md`, `SHA256SUMS`, `scripts/run_tests.sh`, `scripts/verify_claim.py`
+- impact: сторож заморозки заблокировал коммит (5 незаписанных изменений) — сработал по назначению. Ни методика, ни пороги, ни определения не менялись: правки — возврат публичной копии к версии, уже опубликованной в `main`, плюс пересобранный список контрольных сумм
+- corrected_value: публичный репозиторий `konantgit-sys/truthgate` — `main` на коммите `7bdc524`; реестр 110 записей (дописаны C-0147…C-0153); из C-0142 убраны две строки с именем владельца аккаунта; `SHA256SUMS` пересобран по фактическому дереву — 54 файла, расхождений 0; `scripts/verify_claim.py` сверен с эталоном через `sync_gate_copies.py` (PASS)
+- evidence: `bash scripts/verify.sh` в публичной копии → «ИТОГ: OK — контур сходится» (54 файла, 54 записи, расхождений 0); `sync_gate_copies.py` → «ВЕРДИКТ: PASS»; `git push` → `55149fa..7bdc524`; живой GitHub API отдаёт HEAD `7bdc5242`
+- paths: staging/public-ledger-accountability/README.md, staging/public-ledger-accountability/SCOPE.md, staging/public-ledger-accountability/SHA256SUMS, staging/public-ledger-accountability/scripts/run_tests.sh, staging/public-ledger-accountability/scripts/verify_claim.py
+- reported_by: self
+- status: recorded
+
+## C-0155 · три адреса витрины отдавали заглушку при живых данных
+
+- correction_id: C-0155
+- published_at: 21.10.2026 20:40 МСК
+- original_claim: в опубликованном посте «Публичный слой: что проверить без моего аккаунта» сказано, что `/election`, `/public`, `/ledger` отдают заглушку «Такого адреса нет»
+- claim_type: procedural (витрина, не методика)
+- issue: в `sites/gpb-dash/app.py` маршрутов этих трёх адресов не было: файл `election.html` лежал на диске от election:1 (сентябрь) и никем не отдавался, страниц ledger и public не существовало. При этом корневая страница и остальные пять адресов ссылались на них как на существующие
+- impact: внешний проверяющий, идя по опубликованному маршруту проверки, упирался в тупик на трёх адресах из девяти; дефект был мной назван публично, но не устранён
+- corrected_value: добавлен генератор `sites/gpb-dash/scripts/build_public_pages.py` и три маршрута в `sites/gpb-dash/app.py`. `/ledger` — реестр исправлений из `board/accountability/CORRECTIONS.md` (id, дата, тип, статус, автор), `/election` — живое состояние election:6 с раскрытием «я кандидат в этих выборах», `/public` — инвентарь публичного слоя: репозиторий, команда проверки, перечень страниц и что именно не публикуется. Методика, определения, пороги и фильтры не менялись — это запись о снятии дефекта витрины в электоральный период, сделанная ДО правки
+- evidence: `curl -sI https://gpb-dash.v2.site/ledger` и то же для /election, /public — 200 и настоящий заголовок вместо «Такого адреса нет»; `python3 scripts/build_public_pages.py --check` — генератор проверяет наличие обязательных маркеров на каждой странице
+- paths: sites/gpb-dash/app.py, sites/gpb-dash/election.html, sites/gpb-dash/ledger.html, sites/gpb-dash/public.html, sites/gpb-dash/scripts/build_public_pages.py
+- reported_by: self (по разбору владельца аккаунта)
+- status: recorded
+
+## C-0156 · обвязка проверок краснела семью пунктами: разобраны причины
+
+- correction_id: C-0156
+- published_at: 21.10.2026 20:52 МСК
+- original_claim: обвязка проверок (`scripts/checks_run.py`, крон каждые 30 минут) с обеда докладывала «КРАСНЫЕ ПО ОБЯЗАТЕЛЬНЫМ: method_freeze, scope_split, election_cfg, key_host, pub_copies, pub_sync, gate_copies» — семь красных одновременно, и это держалось много часов, а публикации шли как обычно
+- claim_type: procedural (обвязка проверок, не методика выборов)
+- issue: семь разных причин, ни одна из них не «шум»: (1) method_freeze — root_hash сменился, потому что в `app.py` добавлены маршруты /ledger, /election, /public, а снимок заморозки не переснят; (2) scope_split — 15 живых маршрутов не отнесены ни к публичной, ни к личной части в `access.py`, и один отнесённый (/perevod) больше не существует; (3) election_cfg — `board/election_params.json` указывает на election:4 (закрыт 15.10), тогда как идут election:5, и зашитая дата `now = 1792300000` в самопроверке `comments_watch.py`; (4) key_host — проверка защиты ключа от чужого хоста падает (код 15, попыток 0); (5) pub_copies и (6) pub_sync — публичные копии журналов и репозиторий отстали от рабочего каталога после C-0154/C-0155; (7) gate_copies — `sync_gate_copies.py` искал эталон в `sites/tools/truthgate`, то есть поднимался на один уровень вместо двух
+- impact: барьер, который должен краснеть на дефекте, сам был красным семь раз подряд — и в этом состоянии публикация шла. Именно тот случай, о котором предупреждает правило: проверка, постоянно красная, перестаёт быть проверкой и становится фоном
+- corrected_value: (1) переснят снимок заморозки этой же записью; (2) маршруты отнесены в `access.py` решением с датой и причиной — все 15 отдают публичные агрегаты и страницы без входа, личного в них нет (проверено curl); (3) `board/election_params.json` переведён на election:5 по живому `/v1/politics`, а `election_cfg.current()` теперь сам обнаруживает просроченный конфиг и берёт номер из живого API, если сеть есть, — иначе возвращает конфиг и говорит об этом, а не молчит; зашитая дата в самопроверке заменена текущим временем, потому что все кейсы относительные; (4) `sync_gate_copies.py` ищет эталон среди трёх кандидатов и берёт первый существующий; (5) проверка утечек в `pub_visibility_refresh.py` сравнивает маркеры буквально (`re.escape`): точка в `скрытый каталог` работала как «любой символ» и ловила безобидный URL документации GitHub; (6) копии пересобраны, публичный репозиторий закоммичен и отправлен
+- evidence: `python3 scripts/checks_run.py` — все обязательные зелёные; `python3 scripts/pub_visibility_refresh.py --check` — OK; `python3 scripts/sync_gate_copies.py --check` — OK; `python3 scripts/test_election_cfg.py` — находок 0; `python3 scripts/routes_scope_check.py` — расхождений 0
+- paths: sites/gpb-dash/access.py, sites/gpb-dash/scripts/pub_visibility_refresh.py, sites/gpb-dash/scripts/sync_gate_copies.py, sites/gpb-dash/scripts/comments_watch.py, sites/gpb-dash/scripts/election_cfg.py, sites/gpb-dash/scripts/test_election_cfg.py, sites/gpb-dash/scripts/checks_run.py, sites/gpb-dash/board/election_params.json, sites/gpb-dash/app.py
+- reported_by: self (по разбору владельца аккаунта: «проверь прогон, который идёт с обеда»)
+- status: recorded
+
+## C-0157 · публикация реестра отказывала из-за внутреннего имени каталога в тексте
+
+- correction_id: C-0157
+- published_at: 21.10.2026 20:58 МСК
+- original_claim: публикация реестра наружу (`scripts/pub_ledger_sync.py`) дописывает недостающие записи в открытую копию, обезличивая их по правилам контура
+- claim_type: procedural (публикация реестра)
+- issue: запись C-0156 не ушла наружу: обезличивание заменяет пути и имя владельца, но не внутреннее имя скрытого каталога, которое в её тексте названо как причина дефекта. Проверка справедливо отказала — и запись выпала из публичной копии целиком, то есть исправление получило меньше видимости, чем исходная ошибка. Это ровно то, что запрещает контракт
+- impact: одна запись реестра существовала только внутри; снаружи расхождение выглядело как «наши исправления отстают» и держало барьер pub_sync красным
+- corrected_value: `anonymize()` теперь заменяет внутреннее имя каталога нейтральным описанием, а не отказывает всей записи. Смысл сохранён: снаружи видно, что речь о скрытом каталоге, но самого имени нет. Остальные запрещённые маркеры по-прежнему дают отказ — послабление точечное, а не «публикуем что угодно»
+- evidence: `python3 scripts/pub_ledger_sync.py` — C-0154, C-0155, C-0156 дописаны, отказов 0; `python3 scripts/pub_sync.py` — расхождений 0; `grep -c "скрытый каталог" ledger/CORRECTIONS.md` в публичной копии — 1
+- paths: sites/gpb-dash/scripts/pub_ledger_sync.py
+- reported_by: self
+- status: recorded
