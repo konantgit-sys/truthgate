@@ -3,6 +3,27 @@
 All notable changes to this repository. Corrections are separate and live in
 `ledger/CORRECTIONS.md` (append-only).
 
+## [0.3.1] — 2026-10-21
+
+### Added
+- `ledger/CORRECTIONS.md` — records `C-0147` … `C-0153` appended in chronological
+  position: the denominator stated in `C-0147` (14 of 16, 88%), the withdrawal of
+  the "word-order invariance" claim after the null model, the translation language
+  check that existed for English only, dashboard and showcase edits recorded
+  against `METHOD_FREEZE`, the full paths of edits that had drifted from the
+  snapshot, and the freeze guard that blocked every commit after midnight.
+  Nothing removed, nothing rewritten.
+- The owner's name no longer appears anywhere in the public ledger: two lines of
+  `C-0142` carried it, the rewriter now maps every case form to "account owner".
+
+### Changed
+- `scripts/verify_claim.py` rebuilt from the reference by `sync_gate_copies.py` —
+  the public barrier must not be weaker than the working one.
+- `SHA256SUMS` rebuilt from actual bytes.
+
+### Verification
+- `bash scripts/verify.sh` — verdict printed below in the same commit.
+
 ## [0.2.2] — известный остаток (принят владельцем 2026-10-18, см. `ledger/CORRECTIONS.md` C-0134)
 
 Не скрытый дефект и не «закрыто»: остаток, который сознательно оставлен.
