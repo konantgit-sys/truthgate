@@ -186514,3 +186514,24 @@
 - paths: scripts/election_cfg.py, scripts/test_election_cfg.py, board/election_params.json
 - reported_by: self
 - status: recorded
+
+---
+
+## Записи C-0170 · Публичный реестр догнал каталог: C-0160…C-0169 опубликованы с базы origin/main, линия не слита вслепую … C-0170 · Публичный реестр догнал каталог: C-0160…C-0169 опубликованы с базы origin/main, линия не слита вслепую
+
+Добавлено 22.10.2026: публичная копия отставала (проверка pub_sync). Прошлое не
+менялось — записи дописаны в конец, обезличены теми же правилами, что и
+прежние (внутренние пути срезаны, имя владельца аккаунта не публикуется).
+## C-0170 · Публичный реестр догнал каталог: C-0160…C-0169 опубликованы с базы origin/main, линия не слита вслепую
+
+- correction_id: C-0170
+- published_at: 22.10.2026 21:25 МСК
+- original_claim: «публичный реестр соответствует нашему каталогу» — состояние, при котором `pub_sync.py` выдавал РАСХОД по `ledger/CORRECTIONS.md`: в публичной копии не было наших записей C-0160…C-0167 (8 из 167 на момент проверки)
+- claim_type: measured (сравнение множеств ID двух файлов)
+- issue: публичный контур (`staging/public-ledger-accountability` → `konantgit-sys/truthgate`) молча отстал на восемь записей реестра, потом на десять (добавились C-0168, C-0169 в этой же сессии). При публикации выяснилось второе: локальная линия и `origin/main` разошлись — те же C-0154…C-0159 были опубликованы дважды из разных копий (коммиты `4d81aac`/`28cb034` и `861b717`/`9f404ee`). Прямой `git push` отклонился, и это правильно: слепой merge дал бы дубли записей в append-only реестре
+- impact: снаружи десять исправлений, включая три сегодняшних (учёт голосов, заморозка методики, переход обвязки на election:6), были не видны. Правило контракта «исправление получает не меньше видимости, чем исходный заметный пост» не выполнялось. Наш каталог при этом был полон — расхождение одностороннее
+- corrected_value: публикация сделана на базе `origin/main` (не поверх локальной линии): рабочее дерево приведено к `861b717`, затем `pub_ledger_sync.py` дописал только недостающие записи C-0160…C-0169 — append-only, потерь 0, сирот 0, внутреннего в тексте нет. `SHA256SUMS` пересобран: 55 файлов, `verify.sh` → «контур сходится» (сверка байтов и покрытие списка OK). Запушено `861b717..a90004a`. `pub_sync.py` → PASS. Снимок заморозки переснят, `method_freeze --verify` → OK
+- evidence: `python3 scripts/pub_ledger_sync.py` (дописано, потеряно 0 | сирот 0), `bash staging/public-ledger-accountability/scripts/verify.sh` (ИТОГ: OK, 55 файлов), `git push origin main` → `861b717..a90004a`, `python3 scripts/pub_sync.py` (ВЕРДИКТ: PASS), `python3 scripts/method_freeze.py --verify` (OK), ветка-бэкап локальной линии сохранена в публичном клоне
+- paths: staging/public-ledger-accountability/ledger/CORRECTIONS.md, staging/public-ledger-accountability/SHA256SUMS, board/accountability/METHOD_FREEZE.json
+- reported_by: self
+- status: recorded
