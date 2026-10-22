@@ -3,6 +3,32 @@
 All notable changes to this repository. Corrections are separate and live in
 `ledger/CORRECTIONS.md` (append-only).
 
+## [0.4.0] — 2026-10-22
+
+### Added
+- `README.ru.md` — a full Russian version of the README, not a summary: same
+  sections, same numbers, same honest status block. The English `README.md` stays
+  the authoritative text for the documentation; the Russian file is the equal
+  reading path for the reader who challenges the work in Russian.
+- `docs/VERIFY.md` — five-minute verification with the reasoning behind each check
+  and the exit-code table.
+- `docs/ARCHITECTURE.md` — why the contour has four layers, what each layer caught
+  that the previous one could not, and what the contour deliberately does not do.
+- `docs/SCREENSHOTS.md` — gallery of four public pages captured 2026-10-22, with
+  what each page proves and a note on what is deliberately not in the images.
+- `docs/FAQ.md` — the questions this repository actually gets, including the
+  uncomfortable ones about conflicts of interest and forgery.
+- `docs/screenshots/` — four captures of public pages (radar, accountability,
+  ledger, board). Hashed like every other contour file.
+
+### Changed
+- `README.md` rewritten: language switch at the top, screenshot gallery instead of
+  a description of one, current counts (128 ledger entries, latest `C-0171`),
+  invariant list, and a status block that names the date of the last change.
+- `SHA256SUMS` rebuilt to cover the new documentation and images; the coverage
+  check requires every contour file to be listed, so an unhashed file cannot ride
+  along.
+
 ## [0.3.2] — 2026-10-21
 
 ### Added
