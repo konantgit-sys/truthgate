@@ -30,8 +30,20 @@ echo "1b) Покрытие: список должен перечислять к�
 # рецензентом (борда, seq 78516) и воспроизведён фикстурой в scripts/test_sums_coverage.sh.
 if [ -f SHA256SUMS ]; then
   listed=$(grep -cE '^[0-9a-f]{64}' SHA256SUMS)
+  # Рабочие метки шлюза (board/.gate_pass) перечислены в .gitignore и не публикуются,
+  # поэтому в состав контура не входят: иначе любой прогон шлюза делает проверку красной
+  # на собственном мусоре. Исключаем именно игнорируемое, а не «всё, чего нет в git»:
+  # файл, забытый в индексе, обязан остаться дырой.
+  # Предикат ниже продублирован намеренно: scripts/test_sums_coverage.sh извлекает его
+  # регуляркой именно из строки `present=$(find . …)`, поэтому он обязан быть литералом.
   present=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -path './SHA256SUMS' | wc -l)
-  missing=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -path './SHA256SUMS' | sed 's|^\./||' | sort > /tmp/f_contour.txt; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_listed.txt; comm -23 /tmp/f_contour.txt /tmp/f_listed.txt)
+  contour_all=$(find . -type f -not -path './.git/*' -not -path '*/__pycache__/*' -not -name '*.pyc' -not -path './SHA256SUMS' | sed 's|^\./||')
+  contour_files() {
+    printf '%s\n' "$contour_all" | while IFS= read -r f; do
+      git check-ignore -q -- "$f" 2>/dev/null || printf '%s\n' "$f"
+    done
+  }
+  missing=$(contour_files | sort > /tmp/f_contour.txt; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_listed.txt; comm -23 /tmp/f_contour.txt /tmp/f_listed.txt)
   if [ -n "$missing" ]; then
     echo "   ДЫРА В СПИСКЕ: файлы без записи:"; printf '%s\n' "$missing" | sed 's/^/     /' | head -10; fail=1
   else

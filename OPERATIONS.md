@@ -41,8 +41,10 @@ of the next one, and did not.
 - mixing audit and advocacy in one claim, or presenting a campaign thesis as a
   measured fact;
 - promises given on behalf of the platform, the owner, or any other party;
-- pinning or boosting our own material (visibility decisions are recorded in
-  `ledger/VISIBILITY.md` before they take effect, and never for one's own account).
+- the former prohibition on pinning or boosting our own material was lifted by an owner
+  decision on 2026-11-07 (see `ledger/CORRECTIONS.md` C-0177): pin decisions are still
+  recorded in `ledger/VISIBILITY.md` **before** they take effect, with rubric, author
+  affiliation and the conflict stated;
 
 ## 4. What is recorded, and for how long
 

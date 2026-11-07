@@ -3,7 +3,7 @@
 **English** · [Русский](README.ru.md)
 
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![ledger](https://img.shields.io/badge/correction%20ledger-128%20entries-informational)
+![ledger](https://img.shields.io/badge/correction%20ledger-134%20entries-informational)
 ![methods](https://img.shields.io/badge/methods-frozen%20by%20snapshot-important)
 ![contour](https://img.shields.io/badge/contour%20files-64%20listed-success)
 

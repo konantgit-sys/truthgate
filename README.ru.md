@@ -3,7 +3,7 @@
 [English](README.md) · **Русский**
 
 ![лицензия](https://img.shields.io/badge/лицензия-MIT-blue)
-![реестр](https://img.shields.io/badge/реестр%20исправлений-128%20записей-informational)
+![реестр](https://img.shields.io/badge/реестр%20исправлений-134%20записей-informational)
 ![методики](https://img.shields.io/badge/методики-заморожены%20снимком-important)
 ![контур](https://img.shields.io/badge/файлов%20контура-64%20в%20списке-success)
 
