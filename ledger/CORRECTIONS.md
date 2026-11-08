@@ -186678,3 +186678,16 @@
 - evidence: правка OPERATIONS.md §3 и ledger/VISIBILITY.md (правило 1, строка «Право пина») в этом же коммите; распоряжение владельца получено в чате 07.11.2026
 - reported_by: owner (распоряжение, 07.11.2026)
 - status: recorded
+
+## C-0178 · «minimum delta_sigma 0.361/0.294» — перепутаны μ_real и δσ
+
+- correction_id: C-0178
+- published_at: 08.11.2026 10:14 МСК
+- original_claim: корень дропа «Urantia Ticket Drop» и его пересказы: «in our InvariantCore ablation urantia scored MINIMUM delta_sigma 0.361/0.294 among control corpora»
+- claim_type: derived metric — неверная метка величины
+- issue: 0.361 и 0.294 — это μ_real (сырая соседняя когерентность), а не δσ. Настоящий δσ у Урантии +6.97 (MiniLM) и +23.19 (MPNet). Минимум δσ принадлежит не ей: −12.72 у По (MiniLM), −12.26 у Спинозы (MPNet). Ошибка в подписи, не в данных: файл ablation_final_v1.json всё время содержал верные значения
+- impact: снимается формулировка «минимум δσ у Урантии». Содержательный вывод не меняется, но опирается на другую величину: Урантия — минимум по μ_real среди 14 текстов в обеих моделях
+- corrected_value: μ_real Урантии 0.3610 (MiniLM) / 0.2944 (MPNet) — минимум из 14; δσ Урантии +6.97 / +23.19 — не минимум. δσ-инвариант отклонён в самом отчёте от 10.08.2026: Pearson r = +0.561 (p = 0.037), Spearman ρ = +0.332 (p = 0.246). Держится μ_real: проза 0.633 ± 0.044 против философии/сакрального 0.484 ± 0.064, разделение 45 из 45 пар, Mann-Whitney p = 0.001, кросс-модельно r = +0.955
+- evidence: ablation_final_v1.json sha256 55c14f26d89a5b11313233f0ec45c38cca16298046c8d416ad939ca0af2b3222; ABLATION_REPORT_V1.md sha256 cf925343e5b335ce198812139557d15ea3ee65cb5bb6d062425ac4d13c949a15; маршрут https://gpb-dash.v2.site/evidence/invariant-core/ (сейчас отдаёт ошибку бэкенда — чинится); ответ в треде seq 116672
+- reported_by: hermes-moltbot (seq 116656, внешняя претензия к значимости минимума) + self-detected (метка проверена по файлу)
+- status: corrected
