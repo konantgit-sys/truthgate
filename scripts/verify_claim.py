@@ -131,6 +131,43 @@ def dig(obj, path):
     return cur
 
 
+def _norm_ws(s):
+    """Нормализация для сверки цитаты с телом ревизии: пробелы и регистр не значимы."""
+    return re.sub(r'\s+', ' ', s or '').strip().lower()
+
+
+LEDGER_URL = 'https://getpostingboard.dev/v1/rules/revisions'
+
+
+def rules_revision_body(seq):
+    """Тело ревизии устава seq из живого журнала /v1/rules/revisions.
+
+    Возвращает str (тело), None (ревизии нет) или бросает исключение (журнал не
+    ответил, ключа нет). Различать «нет ревизии» и «не смог прочитать» обязан
+    вызывающий: это разные отказы с разными последствиями.
+    """
+    import os, urllib.request
+    kf = os.environ.get('GATE_BOARD_KEY_FILE', '')
+    if not kf or not os.path.exists(kf):
+        raise OSError('нет файла ключа борды: задайте GATE_BOARD_KEY_FILE')
+    hdrs = {'Accept': 'application/json', 'X-Agent-Protocol': 'getpostingboard/1',
+            'User-Agent': 'curl/8.0 (agent-conformance-check)',
+            'Authorization': 'Bearer ' + open(kf, encoding='utf-8').read().strip()}
+    before = None
+    for _ in range(12):
+        u = LEDGER_URL + (('?before=%d' % before) if isinstance(before, int) else '')
+        obj = json.loads(urllib.request.urlopen(
+            urllib.request.Request(u, headers=hdrs), timeout=25).read().decode('utf-8', 'replace'))
+        for it in obj.get('items') or []:
+            if it.get('seq') == seq:
+                return it.get('body') or ''
+        nxt = obj.get('next_before')
+        if not isinstance(nxt, int) or nxt == before:
+            break
+        before = nxt
+    return None
+
+
 def main():
     global ARGS_OFFLINE
     ap = argparse.ArgumentParser()
@@ -352,6 +389,50 @@ def main():
         if unknown:
             fails.append('%s: ЧИСЛА ВНЕ ПРОГОНА — их нет в facts.numbers, значит взяты не из замера: %s'
                          % (path, ', '.join(unknown[:40])))
+
+    # 6. Ревизия источника для цитат устава (12.11.2026).
+    # Повод — разведка контура: /v1/rules/custody отдаёт mode=positive_karma и
+    # locked=false, то есть пост правил может править любой аккаунт с плюсовой
+    # кармой, а /v1/rules/revisions ведёт журнал тел ревизий. Значит цитата
+    # устава без номера ревизии устаревает молча: те же «шесть обычаев», другой
+    # текст. Барьер сверял числа и время, но не ревизию источника.
+    RULES_MARKERS = ('/v1/rules', 'Six customs', 'устав борды', 'правила борды')
+    _cited = []
+    for _p in a.draft:
+        try:
+            _t = open(_p, encoding='utf-8').read()
+        except OSError:
+            continue
+        for _m in RULES_MARKERS:
+            if _m in _t:
+                _cited.append(_m)
+    if _cited:
+        _rev = f.get('rules_revision') or {}
+        _seq = _rev.get('seq')
+        _quote = (_rev.get('quote') or '').strip()
+        if not isinstance(_seq, int) or not _quote:
+            fails.append('НЕТ РЕВИЗИИ УСТАВА: черновик ссылается на правила (%s), а в фактах нет '
+                         'rules_revision{seq: <число>, quote: <фрагмент>}. Устав правится любым '
+                         'аккаунтом с плюсовой кармой (custody.mode=positive_karma): цитата без '
+                         'ревизии устаревает молча.' % ', '.join(sorted(set(_cited))))
+        elif offline:
+            notes.append('РЕВИЗИЯ УСТАВА НЕ СВЕРЕНА (offline): заявлена seq=%s, тело ревизии не '
+                         'сверялось — журнал не запрашивался.' % _seq)
+        else:
+            _body = MISSING
+            try:
+                _body = rules_revision_body(_seq)
+            except Exception as _e:
+                fails.append('РЕВИЗИЯ УСТАВА НЕ ПРОЧИТАНА (%s): журнал не ответил — проверка не '
+                             'выполнена, а не «пройдена».' % _e.__class__.__name__)
+            if _body is None:
+                fails.append('РЕВИЗИЯ УСТАВА НЕ НАЙДЕНА: в журнале нет ревизии seq=%s — ссылка на '
+                             'несуществующую ревизию.' % _seq)
+            elif _body is not MISSING and _norm_ws(_quote) not in _norm_ws(_body):
+                fails.append('РЕВИЗИЯ УСТАВА РАСХОДИТСЯ: цитаты нет в теле ревизии seq=%s — текст '
+                             'правил другой, чем в фактах.' % _seq)
+            elif _body is not MISSING:
+                notes.append('ревизия устава сверена: seq=%s, цитата найдена в теле' % _seq)
 
     print('=' * 62)
     print('ПРОВЕРКА ВЫВОДА ПЕРЕД ПУБЛИКАЦИЕЙ')

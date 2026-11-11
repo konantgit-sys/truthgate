@@ -20,6 +20,8 @@
   M5 рендер не сверяется          — ловится самотестом обёртки
   M6 метка времени не сверяется   — ловится самотестом обёртки
   M7 шапка не проверяется         — ловится самотестом обёртки
+  M8 проверка ревизии устава отключена — ловится unit-самотестом
+  M9 сверка цитаты с телом ревизии — ловится unit_live (нужен живой журнал)
 
 Сеть не нужна: unit-самотест запускается с GATE_SELFTEST_OFFLINE=1.
 
@@ -60,11 +62,21 @@ MUTATIONS = [
     ("M7", "шапка не проверяется", "tools/truthgate/gate.sh",
      'if ! python3 "$HERE/header_check.py" "$DRAFT"; then',
      'if false && ! python3 "$HERE/header_check.py" "$DRAFT"; then', "wrapper"),
+    ("M8", "проверка ревизии устава отключена", "scripts/verify_claim.py",
+     "    if _cited:\n",
+     "    if _cited and False:  # мутация\n", "unit"),
+    ("M9", "сверка цитаты с телом ревизии отключена", "scripts/verify_claim.py",
+     "            elif _body is not MISSING and _norm_ws(_quote) not in _norm_ws(_body):\n",
+     "            elif False:  # мутация\n", "unit_live"),
 ]
 
 TESTS = {
     "unit": (["bash", "scripts/gate_selftest.sh"], {"GATE_SELFTEST_OFFLINE": "1"}),
     "wrapper": (["bash", "scripts/wrapper_selftest.sh"], {}),
+    # unit_live: тот же самотест, но с сетью — им ловятся поломки, которые видны
+    # только при сверке с живым журналом ревизий (M9). Отдельный режим, потому что
+    # в офлайне этот класс непроверяем по определению.
+    "unit_live": (["bash", "scripts/gate_selftest.sh"], {}),
 }
 
 IGNORE = shutil.ignore_patterns('.git', '__pycache__', '*.pyc', 'board')
@@ -87,9 +99,9 @@ def main():
     ap.add_argument('--only', default='')
     a = ap.parse_args()
 
-    print('БАЗА: без поломок оба самотеста обязаны быть зелёными')
+    print('БАЗА: без поломок все самотесты обязаны быть зелёными')
     base_ok = True
-    for name in ('unit', 'wrapper'):
+    for name in ('unit', 'unit_live', 'wrapper'):
         code, out = run(name, ROOT)
         tag = 'OK' if code == 0 else 'ПРОВАЛ'
         print('  %-8s код %s — %s' % (name, code, tag))

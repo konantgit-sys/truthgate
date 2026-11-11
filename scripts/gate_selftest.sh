@@ -21,6 +21,10 @@ OK=0; BAD=0
 # Остальные входы обязаны падать по своим причинам и в офлайне — если в офлайне
 # дырявый вход проходит, значит проверка держалась на сети, а не на коде.
 OFFLINE="${GATE_SELFTEST_OFFLINE:-0}"
+# 12.11.2026: ключ борды нужен проверке ревизии устава. Путь по умолчанию —
+# от $HOME, чтобы в публичном дереве не описывать раскладку рабочего каталога.
+: "${GATE_BOARD_KEY_FILE:=$HOME/.secure/gate_board.key}"
+export GATE_BOARD_KEY_FILE
 
 # 18.10.2026: версия контракта берётся ЖИВЬЁМ. Прибитая 1.17.3 держала «верный
 # вход» красным каждый раз, когда борда обновлялась, — тест ловил свою память,
@@ -112,7 +116,7 @@ case_check() {  # case_check <имя> <ожидаемая причина в вы
   echo "  $NAME: код $WANT_CODE, причина своя — $WANT"; OK=$((OK+1))
 }
 
-echo "САМОПРОВЕРКА БАРЬЕРА (5 дырявых входов × своя причина + 1 верный вход)"
+echo "САМОПРОВЕРКА БАРЬЕРА (7 дырявых входов × своя причина + 1 верный вход)"
 
 # 0. Верный вход обязан ПРОЙТИ, иначе барьер просто всё запрещает.
 base_facts "$TMP/good.json"
@@ -164,6 +168,54 @@ PY
 printf 'Полная страница, все числа сходятся, версия объявлена прошлой.\n' > "$TMP/stale.md"
 case_check stale "CONTROL.LIVE РАСХОДИТСЯ" 15
 
+# 6. Ссылка на устав без номера ревизии (12.11.2026). Устав правится любым
+#    аккаунтом с плюсовой кармой (custody.mode=positive_karma), поэтому цитата
+#    без ревизии устаревает молча: шесть пунктов те же, текст другой.
+base_facts "$TMP/rules.json"
+printf 'По уставу /v1/rules: «Six customs», пункт 1 — писать кратко и по делу.\n' > "$TMP/rules.md"
+case_check rules "НЕТ РЕВИЗИИ УСТАВА" 24
+
+# 7. Ревизия заявлена, но её тело — другой текст: ссылка ведёт не туда.
+base_facts "$TMP/badrev.json"
+python3 - "$TMP/badrev.json" << 'PYJSON'
+import json,sys
+d=json.load(open(sys.argv[1])); d['rules_revision']={'seq':21,'quote':'фраза, которой в уставе нет'}
+json.dump(d,open(sys.argv[1],'w'),ensure_ascii=False)
+PYJSON
+printf 'По уставу /v1/rules: цитата, которой в теле ревизии нет.\n' > "$TMP/badrev.md"
+if [ "$OFFLINE" = "1" ]; then
+  echo "  badrev: пропущен в офлайне — журнал ревизий не запрашивается (сказано вслух, а не тишина)"
+  OK=$((OK+1))
+elif [ ! -f "${GATE_BOARD_KEY_FILE:-/home/agent/data/.secure/gate_board.key}" ]; then
+  echo "  badrev: пропущен — нет ключа борды для чтения журнала ревизий"
+  OK=$((OK+1))
+else
+  case_check badrev "РЕВИЗИЯ УСТАВА РАСХОДИТСЯ" 24
+fi
+
+# 8. Тот же вход, но с ревизией устава: цитата сверена с телом — обязан пройти.
+#    Без этого кейса проверка ревизии могла бы запрещать всё подряд и выглядеть
+#    «строгой»: отказ без прохождения не отличает починку от запрета.
+base_facts "$TMP/rulesok.json"
+python3 - "$TMP/rulesok.json" << 'PYJSON'
+import json,sys
+d=json.load(open(sys.argv[1])); d['rules_revision']={'seq':21,'quote':'Write briefly and to the point'}
+json.dump(d,open(sys.argv[1],'w'),ensure_ascii=False)
+PYJSON
+printf 'По уставу /v1/rules: «Six customs», пункт 1 — Write briefly and to the point.\n' > "$TMP/rulesok.md"
+if [ "$OFFLINE" = "1" ]; then
+  echo "  rules_ok: пропущен в офлайне — тело ревизии не сверяется (сказано вслух)"
+  OK=$((OK+1))
+else
+  CODE="$(gate "$TMP/rulesok.md" "$TMP/rulesok.json")"
+  if [ "$CODE" = "0" ]; then
+    echo "  rules_ok: код 0 — цитата сверена с телом ревизии seq=21"; OK=$((OK+1))
+  else
+    echo "  rules_ok: ПРОВАЛ — верная ссылка на ревизию отвергнута (код $CODE)"
+    grep -aE '^✗' "$TMP/rulesok.json.log" | head -2 | sed 's/^/      /'; BAD=$((BAD+1))
+  fi
+fi
+
 echo
 echo "— правило номера бюллетеня: вакансия emergency:<t>:<n> не должна быть невидимой —"
 if python3 "$HERE/test_ballot_id.py" > "$TMP/ballot.log" 2>&1; then
@@ -174,7 +226,7 @@ else
 fi
 
 rm -rf "$TMP"
-echo "ИТОГ: отказов по своей причине $OK из 6 (5 дырявых + 1 верный)"
+echo "ИТОГ: отказов по своей причине $OK из $((OK+BAD))"
 if [ "$BAD" -gt 0 ]; then echo "ВЕРДИКТ: FAIL — $BAD вход(ов) повели себя не так"; exit 1; fi
-echo "ВЕРДИКТ: PASS — все пять дырявых отвергнуты своей причиной, верный прошёл"
+echo "ВЕРДИКТ: PASS — все дырявые отвергнуты своей причиной, верный прошёл"
 exit 0
