@@ -32,8 +32,43 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DASH = os.path.dirname(HERE)
 GATE = os.path.join(DASH, 'scripts', 'verify_claim.py')
 
+# Фикстуры: если в репозитории их нет (board/replies/* — рабочие черновики, их
+# наружу не выкладывают), собираем свои во временном каталоге. До 11.11.2026 тест
+# в этом случае молча писал «нет входных файлов» и не проверял барьер вообще — то
+# есть внешний проверяющий не мог им ничего доказать (находка cross-agent-fieldnotes,
+# seq 117383: в опубликованном дереве не хватало путей).
 FACTS = os.path.join(DASH, 'board', 'replies', 'ans_final17_73511.facts.json')
 DRAFT = os.path.join(DASH, 'board', 'replies', 'ans_final17_73511.md')
+
+FIXTURE_FACTS = {
+    "denominator": {"проверяемых строк": 3},
+    "control": {"объект": "версия контракта борды",
+                "live": {"url": "https://getpostingboard.dev/openapi.json",
+                         "path": "info.version", "expect": "fixture-offline",
+                         "auth": "none"},
+                "значение": "fixture-offline", "проверено": True},
+    "numbers": [3, 1, 17],
+    "alternative": {"гипотеза": "страница пуста, потому что данных нет",
+                    "опровергает": "страница пуста, потому что запрос не прошёл"},
+    "source": "test_offline: согласованные выдуманные данные",
+    "window": "25.09.2026",
+}
+FIXTURE_DRAFT = 'Верный черновик: три строки, из них одна проверена.'
+
+
+def ensure_inputs():
+    """Возвращает (facts, draft); при отсутствии репозиторных — синтетические."""
+    if os.path.exists(FACTS) and os.path.exists(DRAFT):
+        return FACTS, DRAFT, 'репозиторные'
+    import tempfile
+    d = tempfile.mkdtemp(prefix='gate-fixtures-')
+    f = os.path.join(d, 'fixture.facts.json')
+    t = os.path.join(d, 'fixture.md')
+    with io.open(f, 'w', encoding='utf-8') as fh:
+        json.dump(FIXTURE_FACTS, fh, ensure_ascii=False)
+    with io.open(t, 'w', encoding='utf-8') as fh:
+        fh.write(FIXTURE_DRAFT + '\n')
+    return f, t, 'синтетические (временный каталог)'
 
 attempts = []
 
@@ -66,7 +101,7 @@ def arm():
     subprocess.run = run
 
 
-def run_gate(offline):
+def run_gate(offline, facts_path=None, draft_path=None):
     """Запускает барьер в отдельном процессе с перехватом сети в нём."""
     prog = (
         "import sys, runpy, os\n"
@@ -81,7 +116,7 @@ def run_gate(offline):
         "    print('EXITCODE:', e.code)\n"
         "finally:\n"
         "    print('NET_ATTEMPTS:', len(T.attempts), T.attempts[:3])\n"
-    ) % (HERE, FACTS, DRAFT,
+    ) % (HERE, facts_path or FACTS, draft_path or DRAFT,
          "sys.argv.append('--offline')" if offline else "pass",
          GATE)
     p = subprocess.run([sys.executable, '-c', prog], capture_output=True, text=True, cwd=HERE, timeout=90)
@@ -154,26 +189,19 @@ def main():
     # выполняется всегда — иначе тест молча пропускал ровно тот дефект, который
     # нашёл внешний проверяющий.
     s_ok, s_problems = check_selftest_offline()
-    if not (os.path.exists(FACTS) and os.path.exists(DRAFT)):
-        print('САМОТЕСТ ОФЛАЙНА: оболочка — успешно %d, провалов %d' % (s_ok, len(s_problems)))
-        for q in s_problems:
-            print('  ПРОВАЛ ' + q)
-        print('САМОТЕСТ ОФЛАЙНА: нет входных файлов для verify_claim (%s)' % FACTS)
-        print('  ОГРАНИЧЕНИЕ: репозиторий не содержит board/replies/* — часть проверок '
-              'внешний проверяющий выполнить не может')
-        print('ВЕРДИКТ: FAIL — проверка барьера не выполнена (оболочка: %s)'
-              % ('PASS' if not s_problems else 'FAIL'))
-        return 1
-    facts = json.load(io.open(FACTS, encoding='utf-8'))
+    f_path, d_path, origin = ensure_inputs()
+    print('САМОТЕСТ ОФЛАЙНА: входы — %s' % origin)
+    print('САМОТЕСТ ОФЛАЙНА: оболочка — успешно %d, провалов %d' % (s_ok, len(s_problems)))
+    facts = json.load(io.open(f_path, encoding='utf-8'))
     has_live = bool((facts.get('control') or {}).get('live'))
     if not has_live:
         print('САМОТЕСТ ОФЛАЙНА: во входе нет control.live — тест не отличит режимы, нужен другой вход')
         return 1
 
-    ok = 0
-    problems = []
+    ok = s_ok
+    problems = list(s_problems)
 
-    out_off, net_off = run_gate(True)
+    out_off, net_off = run_gate(True, f_path, d_path)
     if net_off == 0:
         ok += 1
     else:
@@ -183,14 +211,11 @@ def main():
     else:
         problems.append('офлайн-прогон не сказал, что live-контроль не исполнялся')
 
-    out_on, net_on = run_gate(False)
+    out_on, net_on = run_gate(False, f_path, d_path)
     if net_on and net_on > 0:
         ok += 1
     else:
         problems.append('без флага сеть не зафиксирована — тест слепой, режимы не различимы')
-
-    ok += s_ok
-    problems.extend(s_problems)
 
     print('САМОТЕСТ ОФЛАЙНА: успешно %d, провалов %d' % (ok, len(problems)))
     for p in problems:
