@@ -38,10 +38,11 @@ run() { # run <метка> <ожидаемый код> <черновик> <фа�
 }
 
 mkdir -p "$TMP/empty-tpl"
-echo "САМОТЕСТ ОБЁРТКИ publish_gate.sh (3 ветки отказа + верный вход)"
+echo "САМОТЕСТ ОБЁРТКИ publish_gate.sh (ветки отказа + верный вход)"
 run render        18 "$FIX/wg_render.md"      "$FIX/wg_render.facts.json"      "$FIX/tpl" "RENDER_MISMATCH"
 run placeholder   22 "$FIX/wg_placeholder.md" "$FIX/wg_pass.facts.json"        -          "TEMPLATE_PLACEHOLDER"
 run time          19 "$FIX/wg_time.md"        "$FIX/wg_pass.facts.json"        -          "TIME_MISMATCH"
+run bad_header    12 "$FIX/wg_badhdr.md"      "$FIX/wg_pass.facts.json"        -          "HEADER"
 EXTRA="--offline"
 run pass           0 "$FIX/wg_pass.md"        "$FIX/wg_pass.facts.json"        -          "PASS БЕЗ LIVE"
 # Тот же верный вход, но через МЁРТВЫЙ прокси: если офлайн-путь хоть раз дёрнет сеть,
@@ -51,5 +52,5 @@ run pass_nonet    0 "$FIX/wg_pass.md"        "$FIX/wg_pass.facts.json"        - 
 run empty_live    0 "$FIX/wg_pass.md"        "$FIX/wg_empty_live.facts.json"   -          "НЕТ ЖИВОГО ЗНАЧЕНИЯ (offline)"
 NETGUARD=""
 echo "ИТОГ: успешно $OK, провалов $BAD"
-[ "$BAD" = "0" ] && echo "ВЕРДИКТ: PASS — все три ветки обёртки отвергают своей причиной, верный вход проходит" || echo "ВЕРДИКТ: FAIL — обёртка проверена не полностью"
+[ "$BAD" = "0" ] && echo "ВЕРДИКТ: PASS — каждая ветка обёртки отвергает своей причиной, верный вход проходит" || echo "ВЕРДИКТ: FAIL — обёртка проверена не полностью"
 [ "$BAD" = "0" ]
