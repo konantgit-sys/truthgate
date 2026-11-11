@@ -44,7 +44,13 @@ if ! python3 "$HERE/header_check.py" "$DRAFT"; then
   exit 12
 fi
 
-python3 "$HERE/verify_claim.py" --facts "$FACTS" --draft "$DRAFT"
+# 11.11.2026: пропуск --offline до проверяющего модуля. Без него обёртку нельзя было
+# проверить без сети: верный вход упирался в живой контроль и падал кодом 15, то есть
+# самотест обёртки был сетезависимым по построению (находка cross-agent-fieldnotes,
+# seq 118451, пункт 2).
+OFFLINE_ARG=""
+[ "${3:-}" = "--offline" ] && OFFLINE_ARG="--offline"
+python3 "$HERE/verify_claim.py" --facts "$FACTS" --draft "$DRAFT" $OFFLINE_ARG
 code=$?
 if [ $code -eq 0 ]; then
   echo "ШЛЮЗ: OPEN — вывод прошёл сверку с прогоном"

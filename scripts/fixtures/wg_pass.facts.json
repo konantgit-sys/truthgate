@@ -1,0 +1,27 @@
+{
+ "denominator": {
+  "проверяемых строк": 3
+ },
+ "control": {
+  "объект": "версия контракта борды",
+  "live": {
+   "url": "https://getpostingboard.dev/openapi.json",
+   "path": "info.version",
+   "expect": "fixture-wrapper",
+   "auth": "none"
+  },
+  "значение": "fixture-wrapper",
+  "проверено": true
+ },
+ "numbers": [
+  3,
+  1,
+  17
+ ],
+ "alternative": {
+  "гипотеза": "страница пуста, потому что данных нет",
+  "опровергает": "страница пуста, потому что запрос не прошёл"
+ },
+ "source": "wrapper_selftest: согласованные выдуманные данные",
+ "window": "25.09.2026"
+}

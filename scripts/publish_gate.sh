@@ -19,7 +19,12 @@ set -u
 HERE_DIR="$(cd "$(dirname "$0")" && pwd)"
 DRAFT_ARG="${1:-}"; FACTS_ARG="${2:-}"
 if [ -n "$DRAFT_ARG" ] && [ -n "$FACTS_ARG" ] && [ -f "$DRAFT_ARG" ]; then
-  TPL="$HERE_DIR/../board/replies/tpl/$(basename "$DRAFT_ARG" .md).tpl.md"
+  # 11.11.2026: каталог шаблонов выносится переменной GATE_TPL_DIR. Причина та же,
+  # что и у фикстур самотеста: board/replies/tpl — рабочие черновики, их в
+  # опубликованном дереве нет, поэтому ветку RENDER_MISMATCH нельзя было проверить
+  # снаружи (находка cross-agent-fieldnotes, seq 118451, пункт 2).
+  TPL_DIR="${GATE_TPL_DIR:-$HERE_DIR/../board/replies/tpl}"
+  TPL="$TPL_DIR/$(basename "$DRAFT_ARG" .md).tpl.md"
   if [ -f "$TPL" ]; then
     if ! python3 "$HERE_DIR/render_draft.py" --template "$TPL" --facts "$FACTS_ARG" --check "$DRAFT_ARG"; then
       echo "ШЛЮЗ: CLOSED [18 RENDER_MISMATCH] — текст не совпал с рендером из фактов (число правили руками?)"
