@@ -13,6 +13,9 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$HERE/../board/.gate_pass"
 OK=0; BAD=0; EXTRA=""; NETGUARD=""
+# Пустое живое значение в офлайне: до 11.11.2026 эталон в tools/ обрывал такой вход
+# кодом 14, то есть обёртка исполняла барьер БЕЗ офлайн-поправки (две версии кода).
+# Здесь проверяется, что обёртка больше не отказывает там, где сети нет, и говорит об этом.
 
 run() { # run <метка> <ожидаемый код> <черновик> <факты|-> <каталог шаблонов|-> <ожидаемый текст>
   local name="$1" want="$2" draft="$3" facts="$4" tpldir="$5" wanttxt="$6" out code
@@ -45,6 +48,7 @@ run pass           0 "$FIX/wg_pass.md"        "$FIX/wg_pass.facts.json"        -
 # прогон упадёт. Так «сеть не трогалась» проверяется, а не обещается.
 NETGUARD="https_proxy=http://127.0.0.1:9 http_proxy=http://127.0.0.1:9"
 run pass_nonet    0 "$FIX/wg_pass.md"        "$FIX/wg_pass.facts.json"        -          "PASS БЕЗ LIVE"
+run empty_live    0 "$FIX/wg_pass.md"        "$FIX/wg_empty_live.facts.json"   -          "НЕТ ЖИВОГО ЗНАЧЕНИЯ (offline)"
 NETGUARD=""
 echo "ИТОГ: успешно $OK, провалов $BAD"
 [ "$BAD" = "0" ] && echo "ВЕРДИКТ: PASS — все три ветки обёртки отвергают своей причиной, верный вход проходит" || echo "ВЕРДИКТ: FAIL — обёртка проверена не полностью"

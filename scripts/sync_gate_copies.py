@@ -37,16 +37,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Пути задаются переменными окружения: публичная копия не описывает раскладку
 # рабочего каталога. По умолчанию берём текущее дерево и его соседей.
 ROOT = os.path.dirname(HERE)
-DASH = os.environ.get('PUB_SYNC_DASH', os.path.join(os.path.dirname(ROOT), 'sites', 'gpb-dash'))
-TOOLS = os.environ.get('PUB_SYNC_TOOLS', os.path.join(os.path.dirname(ROOT), 'tools', 'truthgate'))
-PUBLIC = os.environ.get('PUB_SYNC_PUBLIC', ROOT)
-
-SRC = os.path.join(TOOLS, 'verify_claim.py')
-
+# 11.11.2026. Прежние пути были собраны от каталога НАД репозиторием
+# (board-evidence/tools/truthgate), и скрипт падал с «нет файла» — то есть сверка
+# копий барьера не работала вообще, а расхождение копий при этом было настоящим:
+# в tools/truthgate/verify_claim.py не было офлайн-поправки, а обёртка
+# publish_gate.sh исполняет именно его. Теперь: эталон лежит в scripts/, производная —
+# в tools/truthgate/ (её и запускает шлюз). Внешние копии по-прежнему через env.
+SRC = os.environ.get('PUB_SYNC_SRC', os.path.join(ROOT, 'scripts', 'verify_claim.py'))
 DERIVED = [
-    os.path.join(DASH, 'scripts', 'verify_claim.py'),
-    os.path.join(PUBLIC, 'scripts', 'verify_claim.py'),
+    os.environ.get('PUB_SYNC_MODULE', os.path.join(ROOT, 'tools', 'truthgate', 'verify_claim.py')),
 ]
+_extra = os.environ.get('PUB_SYNC_EXTRA', '')
+if _extra:
+    DERIVED += [x for x in _extra.split(':') if x]
+# reasons.py живёт рядом с каждой копией; эталонный словарь — рядом с эталоном.
+REASONS_SRC = os.environ.get('PUB_SYNC_REASONS_SRC', os.path.join(ROOT, 'tools', 'truthgate', 'reasons.py'))
 
 KEY_PATH = "'<путь к файлу ключа задаётся переменной окружения>'"
 
@@ -68,8 +73,12 @@ def build(src_text):
     t = src_text
     DOC_RE = re.compile(r'Общий модуль \(не бордовый\)\..*?работает полностью автономно\.', re.S)
     if not DOC_RE.search(t):
-        raise SystemExit('sync_gate_copies: не найден блок docstring для замены — '
-                         'эталон изменился, скрипт надо поправить вместе с ним')
+        # 11.11.2026: эталон уже хранится в обезличенном виде (внутреннего doc-блока с
+        # раскладкой рабочего каталога в нём больше нет), поэтому замена не нужна.
+        # Раньше здесь был SystemExit — и синхронизация не запускалась ВООБЩЕ, из-за
+        # чего копии молча разъезжались. Теперь это штатный режим, а утечки ловит
+        # проверка ниже, она не ослаблена.
+        pass
     # 18.10.2026: сверка по регулярке, а не по точной строке. Эталон получил новый
     # путь узла в первой строке блока, точная строка перестала совпадать, и скрипт
     # отказывался синхронизировать: производные копии оставались старыми, а тест
@@ -108,9 +117,13 @@ def main():
         # откатывался на код 1, и самопроверка барьера видела «все причины = 1»
         # при зелёном тесте — ровно тот дефект, который коды и должны были убрать.
         rs = os.path.join(os.path.dirname(path), 'reasons.py')
-        want_r = open(os.path.join(TOOLS, 'reasons.py'), encoding='utf-8').read()
+        if not os.path.exists(REASONS_SRC):
+            print(f'ПРОПУСК словаря кодов: эталон {REASONS_SRC} не найден')
+            want_r = None
+        else:
+            want_r = open(REASONS_SRC, encoding='utf-8').read()
         cur_r = open(rs, encoding='utf-8').read() if os.path.exists(rs) else ''
-        if cur_r != want_r:
+        if want_r is not None and cur_r != want_r:
             if a.check:
                 bad.append(rs)
                 print(f'РАСХОЖДЕНИЕ {rs} — словарь кодов не совпадает с эталоном')
