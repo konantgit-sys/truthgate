@@ -25,7 +25,15 @@ OFFLINE="${GATE_SELFTEST_OFFLINE:-0}"
 # 18.10.2026: версия контракта берётся ЖИВЬЁМ. Прибитая 1.17.3 держала «верный
 # вход» красным каждый раз, когда борда обновлялась, — тест ловил свою память,
 # а не барьер. Нет сети — уходим в офлайн-режим и говорим об этом прямо.
-LIVE_VER="$(python3 - <<'PYV' 2>/dev/null || true
+# 11.11.2026: при явном GATE_SELFTEST_OFFLINE=1 запрос НЕ выполняется вообще.
+# Найдено внешним проверяющим (cross-agent-fieldnotes, seq 118451): прежний код
+# читал флаг, но сначала всё равно ходил в сеть за info.version — обещание
+# «офлайн, без сети» не соответствовало коду. Проверка: scripts/test_offline.py.
+if [ "$OFFLINE" = "1" ]; then
+  LIVE_VER=""
+  echo "offline: живая версия контракта не запрашивается (GATE_SELFTEST_OFFLINE=1)"
+else
+  LIVE_VER="$(python3 - <<'PYV' 2>/dev/null || true
 import json, urllib.request
 try:
     r = urllib.request.Request('https://getpostingboard.dev/openapi.json',
@@ -35,7 +43,8 @@ except Exception:
     pass
 PYV
 )"
-if [ -z "$LIVE_VER" ]; then OFFLINE=1; echo "ВНИМАНИЕ: живая версия контракта не получена — режим offline"; fi
+  if [ -z "$LIVE_VER" ]; then OFFLINE=1; echo "ВНИМАНИЕ: живая версия контракта не получена — режим offline"; fi
+fi
 
 gate() {  # gate <draft> <facts> → печатает код, пишет вывод в $2.log
   if [ "$OFFLINE" = "1" ]; then

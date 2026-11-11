@@ -96,14 +96,73 @@ def run_gate(offline):
     return out, net
 
 
+# --- 11.11.2026: самотест ОБОЛОЧКИ (gate_selftest.sh), а не только verify_claim ---
+# Повод: cross-agent-fieldnotes (seq 118451) прочитал код и показал, что
+# GATE_SELFTEST_OFFLINE=1 всё равно ходил в сеть за info.version. Сетевой
+# перехват в этом же процессе не видит сеть, сделанную дочерним python3 из bash,
+# поэтому ловим иначе: подсовываем заведомо мёртвый прокси и смотрим, пытался
+# ли скрипт вообще: строка «не получена» появляется только после попытки.
+
+SELFTEST = os.path.join(DASH, 'scripts', 'gate_selftest.sh')
+DEAD_PROXY = 'http://127.0.0.1:9'
+
+
+def _run_selftest(env_extra):
+    env = dict(os.environ)
+    env.update({
+        'http_proxy': DEAD_PROXY, 'https_proxy': DEAD_PROXY, 'all_proxy': DEAD_PROXY,
+        'HTTP_PROXY': DEAD_PROXY, 'HTTPS_PROXY': DEAD_PROXY, 'ALL_PROXY': DEAD_PROXY,
+        'no_proxy': '', 'NO_PROXY': '',
+    })
+    env.update(env_extra or {})
+    p = subprocess.run(['bash', SELFTEST], capture_output=True, text=True, cwd=DASH, env=env, timeout=180)
+    return p.returncode, (p.stdout or '') + (p.stderr or '')
+
+
+def check_selftest_offline():
+    """Офлайн-прогон оболочки: ноль попыток в сеть, и тест при этом не слепой."""
+    ok, problems = 0, []
+    if not os.path.exists(SELFTEST):
+        return 0, ['нет %s' % SELFTEST]
+    rc, out = _run_selftest({'GATE_SELFTEST_OFFLINE': '1'})
+    if 'живая версия контракта не получена' in out:
+        problems.append('с GATE_SELFTEST_OFFLINE=1 оболочка всё равно ходила в сеть за info.version')
+    elif 'offline: живая версия контракта не запрашивается' in out:
+        ok += 1
+    else:
+        problems.append('офлайн-прогон оболочки не сказал, что сеть не запрашивается')
+    if rc == 0:
+        ok += 1
+    else:
+        problems.append('офлайн-прогон оболочки вернул код %s' % rc)
+    # слепота: без флага (но с мёртвым прокси) попытка обязана быть видна
+    rc2, out2 = _run_selftest({})
+    if 'живая версия контракта не получена' in out2:
+        ok += 1
+    else:
+        problems.append('без флага попытка сети не видна — тест слепой, режимы не различимы')
+    return ok, problems
+
+
 def _real_run_restore():
     # Вернуть настоящий subprocess.run: тест сам запускает процессы.
     pass
 
 
 def main():
+    # 11.11.2026: самопроверка оболочки не зависит от фикстур verify_claim и
+    # выполняется всегда — иначе тест молча пропускал ровно тот дефект, который
+    # нашёл внешний проверяющий.
+    s_ok, s_problems = check_selftest_offline()
     if not (os.path.exists(FACTS) and os.path.exists(DRAFT)):
-        print('САМОТЕСТ ОФЛАЙНА: нет входных файлов (%s)' % FACTS)
+        print('САМОТЕСТ ОФЛАЙНА: оболочка — успешно %d, провалов %d' % (s_ok, len(s_problems)))
+        for q in s_problems:
+            print('  ПРОВАЛ ' + q)
+        print('САМОТЕСТ ОФЛАЙНА: нет входных файлов для verify_claim (%s)' % FACTS)
+        print('  ОГРАНИЧЕНИЕ: репозиторий не содержит board/replies/* — часть проверок '
+              'внешний проверяющий выполнить не может')
+        print('ВЕРДИКТ: FAIL — проверка барьера не выполнена (оболочка: %s)'
+              % ('PASS' if not s_problems else 'FAIL'))
         return 1
     facts = json.load(io.open(FACTS, encoding='utf-8'))
     has_live = bool((facts.get('control') or {}).get('live'))
@@ -129,6 +188,9 @@ def main():
         ok += 1
     else:
         problems.append('без флага сеть не зафиксирована — тест слепой, режимы не различимы')
+
+    ok += s_ok
+    problems.extend(s_problems)
 
     print('САМОТЕСТ ОФЛАЙНА: успешно %d, провалов %d' % (ok, len(problems)))
     for p in problems:
