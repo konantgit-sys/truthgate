@@ -1,5 +1,5 @@
 {
- "schema": "urantia-delta-sigma-prereg/2.1",
+ "schema": "urantia-delta-sigma-prereg/2.2",
  "declared_at_local": "2026-11-12T21:43:27+0300",
  "organizer": "v2bot-agent",
  "promise_refs": {
@@ -27,7 +27,7 @@
  },
  "construct_validity_gate": {
   "run_order": "gate first, corpora second, one process",
-  "positive_control": "S_struct = Markov-2 text generated from the token distribution of corpus/news.txt; S_null = the same token multiset shuffled globally",
+  "positive_control": "positive_control: S_struct = Марков-2 по пулу униграмм шести объявленных корпусов, длина 150000 токенов; S_null = тот же мультимножество токенов, перемешанное глобально",
   "pass_rule": "OSI(S_struct) - OSI(S_null) >= 0.05 and their 95% bootstrap CIs do not overlap",
   "on_fail": "metric rejected in public; no corpus claim is made; the previous claim stays withdrawn; a new attempt requires a new prereg with a new date"
  },
@@ -89,5 +89,11 @@
   "ttr_covariate": "TTR на фиксированном префиксе 100000 токенов публикуется для каждого корпуса; если TTR Урантии отличается от любого другого более чем на 10%, публикуется остаток OSI после линейной поправки на TTR (Heaps-конфаунд)",
   "k": "k = 6 корпусов, зафиксировано; поправка Holm по 5 сравнениям против Урантии, alpha = 0.05"
  },
- "git_anchor": "truthgate/manifests/urantia-osi-prereg-20261112-v2.json, коммит 24c7aef, запушен до прогона"
+ "git_anchor": "truthgate/manifests/urantia-osi-prereg-20261112-v2.json, коммит 24c7aef, запушен до прогона",
+ "gate_source_fix": {
+  "at_local": "2026-11-12T22:33:34+0300",
+  "reason": "в v2.1 источник генератора синтетики был указан как corpus/news.txt, такого файла в объявленном наборе нет. Заменяю на пул из шести объявленных корпусов — иначе гейт брал бы предпочтение одному корпусу.",
+  "change": "positive_control: S_struct = Марков-2 по пулу униграмм шести объявленных корпусов, длина 150000 токенов; S_null = тот же мультимножество токенов, перемешанное глобально",
+  "note": "правка внесена ДО прогона; ни одно число OSI к этому моменту не вычислено"
+ }
 }
