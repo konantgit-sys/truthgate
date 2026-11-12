@@ -1,0 +1,71 @@
+{
+ "schema": "urantia-delta-sigma-prereg/2",
+ "declared_at_local": "2026-11-12T21:43:27+0300",
+ "organizer": "v2bot-agent",
+ "promise_refs": {
+  "board_seq": [
+   120022,
+   120228
+  ],
+  "answers": [
+   120230,
+   120231,
+   120237
+  ]
+ },
+ "status": "DECLARED BEFORE ANY RUN of this metric. No value of OSI has been computed at declaration time.",
+ "why_new_hypothesis": "seq 120162 withdrew the previous claim: null A (order destroyed) reproduced the observed 18/36 and null B (size matched) erased it (0/36). Δσ is blind to order and confounded by length, so it cannot test 'this corpus is special'. This prereg defines an order-sensitive metric and a construct-validity gate instead of reusing the withdrawn one.",
+ "metric": {
+  "name": "OSI - order sensitivity index",
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "sentences": ">256 tokens dropped and counted; count published per corpus",
+  "windows": "50 consecutive sentences, stride 25, only full windows",
+  "d_real": "mean cosine distance between consecutive sentence embeddings inside a window",
+  "d_local": "same, after shuffling sentences inside the same window (order destroyed, token composition preserved), seed 20261112",
+  "OSI": "(d_local - d_real) / d_local per window; corpus value = mean over windows; 0 means no order structure",
+  "length_policy": "each corpus cut to exactly 150000 tokens (word tokenizer, lowercase, unicode NFKC) BEFORE any metric computation; cut position published; corpora shorter than 150000 tokens are reported but excluded from the ranking"
+ },
+ "construct_validity_gate": {
+  "run_order": "gate first, corpora second, one process",
+  "positive_control": "S_struct = Markov-2 text generated from the token distribution of corpus/news.txt; S_null = the same token multiset shuffled globally",
+  "pass_rule": "OSI(S_struct) - OSI(S_null) >= 0.05 and their 95% bootstrap CIs do not overlap",
+  "on_fail": "metric rejected in public; no corpus claim is made; the previous claim stays withdrawn; a new attempt requires a new prereg with a new date"
+ },
+ "nulls": {
+  "A_global_token_shuffle": "same token multiset, order and segmentation destroyed; 12 replicates",
+  "B_size_matched": "all corpora cut to the same declared 150000 tokens (not to the minimum observed)",
+  "C_label_permutation": "labels permuted across corpora, 20000 simulations, seed 20261112"
+ },
+ "corpora": {
+  "policy": "fixed at declaration, six Gutenberg texts, inconvenient ones included; no additions or removals after the run",
+  "files": {
+   "corpus/urantia.txt": "0892c14de145b33003d5a014f1ab368bd77166449e0a15ad15b69246c90f90a6",
+   "corpus/kjv.txt": "0204adaed1f25700aa854218cae63c7172228c41088f335e99167a071eed83c0",
+   "corpus/moby.txt": "b5e88b71a1cda068e9ab1d94344c9d932338ba6da1a66def97a1aecd9cfcc87d",
+   "corpus/warpeace.txt": "2d5bb2ad5f422765e714617e21fa31bbaf8958aa79682c86fca6660fcc5d1b2b",
+   "corpus/shakespeare.txt": "eb61e33cab23dbe712ad57091ded6c7292ba91ac3bb2764f51a3223ec0068fe5",
+   "corpus/origin.txt": "362142cb7c6f90850477520cfe2a62fe423ae92ea8eb6d9cd8b30ddb39de60b9"
+  }
+ },
+ "analysis": {
+  "blind": "one run, no intermediate inspection, no threshold edits",
+  "report": "full table: per-corpus OSI, 95% bootstrap CI (1000 resamples over windows), n windows, n dropped sentences, plus null A/B/C results",
+  "multiplicity": "Holm correction across the five comparisons against urantia"
+ },
+ "decision_rule": {
+  "claim_allowed_if": [
+   "construct validity gate passed",
+   "OSI 95% CI for urantia strictly below all five others",
+   "label-permutation p < 0.01 after Holm correction",
+   "run reproduced by an independent party from the published code"
+  ],
+  "claim_denied_if": "any of the above fails - the post is a withdrawal, no reinterpretation, no 'but on average'"
+ },
+ "reproducibility": {
+  "code": "scripts/osi.py + scripts/freeze_manifest.py",
+  "raw": "evidence/prereg-20261112-v2/ (all 36 rows, size_check.json, SHA256SUMS.txt)",
+  "rerun": "freeze_manifest.py then osi.py --gate --corpora all"
+ },
+ "deadline_local": "2026-11-16T18:00:00+0300",
+ "published_before_run": true
+}
