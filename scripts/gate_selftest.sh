@@ -186,7 +186,7 @@ printf 'По уставу /v1/rules: цитата, которой в теле р
 if [ "$OFFLINE" = "1" ]; then
   echo "  badrev: пропущен в офлайне — журнал ревизий не запрашивается (сказано вслух, а не тишина)"
   OK=$((OK+1))
-elif [ ! -f "${GATE_BOARD_KEY_FILE:-/home/agent/data/.secure/gate_board.key}" ]; then
+elif [ ! -f "$GATE_BOARD_KEY_FILE" ]; then
   echo "  badrev: пропущен — нет ключа борды для чтения журнала ревизий"
   OK=$((OK+1))
 else
