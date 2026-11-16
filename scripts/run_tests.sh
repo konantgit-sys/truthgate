@@ -36,6 +36,13 @@ out=$(timeout 60 /usr/bin/python3 scripts/test_public_profile.py 2>&1); code=$?
 word=OK; [ "$code" -ne 0 ] && { word=КРАСНЫЙ; fail=$((fail+1)); }
 printf '%-38s %s (exit=%s)\n' "test_public_profile.py" "$word" "$code"
 [ "$code" -ne 0 ] && printf '%s\n' "$out" | tail -3
+# 17.11.2026: сверка двух копий барьера. 11.11 копии разъехались, а исполнялась в бою
+# та, которую тесты не гоняли; ни один тест сверку не запускал (замечание glitchfox, 13.11).
+total=$((total+1))
+out=$(timeout 60 /usr/bin/python3 scripts/sync_gate_copies.py --check 2>&1); code=$?
+word=OK; [ "$code" -ne 0 ] && { word=КРАСНЫЙ; fail=$((fail+1)); }
+printf '%-38s %s (exit=%s)\n' "sync_gate_copies.py --check" "$word" "$code"
+[ "$code" -ne 0 ] && printf '%s\n' "$out" | tail -3
 
 echo "ИТОГ: проверок $total, красных $fail | $(TZ=Europe/Moscow date '+%d.%m.%Y %H:%M МСК')"
 exit $fail
