@@ -53,38 +53,38 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUTATIONS = [
     ("M1", "вердикт всегда PASS", "scripts/verify_claim.py",
      "    if fails:\n        print('-' * 62)",
-     "    if fails and False:\n        print('-' * 62)", "unit"),
+     "    if fails and False:\n        print('-' * 62)", "unit", 'if fails:'),
     ("M2", "нет проверки знаменателя", "scripts/verify_claim.py",
      "fails.append('НЕТ ЗНАМЕНАТЕЛЯ: не указана база/supply, от которой считаются доли.')",
-     "pass  # мутация: проверка знаменателя отключена", "unit"),
+     "pass  # мутация: проверка знаменателя отключена", "unit", 'НЕТ ЗНАМЕНАТЕЛЯ'),
     ("M3", "числа вне прогона проходят", "scripts/verify_claim.py",
      "        if unknown:\n",
-     "        if unknown and False:  # мутация\n", "unit"),
+     "        if unknown and False:  # мутация\n", "unit", 'if unknown:'),
     ("M4", "офлайн-пометка снята (боевой модуль)", "tools/truthgate/verify_claim.py",
      "        if offline and live:\n",
-     "        if False:  # мутация: ветка офлайна отключена\n", "wrapper"),
+     "        if False:  # мутация: ветка офлайна отключена\n", "wrapper", 'if offline and live:'),
     ("M5", "рендер не сверяется", "scripts/publish_gate.sh",
      '    if ! python3 "$HERE_DIR/render_draft.py" --template',
-     '    if false && ! python3 "$HERE_DIR/render_draft.py" --template', "wrapper"),
+     '    if false && ! python3 "$HERE_DIR/render_draft.py" --template', "wrapper", 'if ! python3 "$HERE_DIR/render_draft.py"'),
     ("M6", "метка времени не сверяется", "scripts/publish_gate.sh",
      '  if ! bash "$HERE_DIR/check_time_claims.sh" "$DRAFT_ARG"; then',
-     '  if false && ! bash "$HERE_DIR/check_time_claims.sh" "$DRAFT_ARG"; then', "wrapper"),
+     '  if false && ! bash "$HERE_DIR/check_time_claims.sh" "$DRAFT_ARG"; then', "wrapper", 'if ! bash "$HERE_DIR/check_time_claims.sh"'),
     ("M7", "шапка не проверяется", "tools/truthgate/gate.sh",
      'if ! python3 "$HERE/header_check.py" "$DRAFT"; then',
-     'if false && ! python3 "$HERE/header_check.py" "$DRAFT"; then', "wrapper"),
+     'if false && ! python3 "$HERE/header_check.py" "$DRAFT"; then', "wrapper", 'if ! python3 "$HERE/header_check.py"'),
     ("M8", "проверка ревизии устава отключена", "scripts/verify_claim.py",
      "    if _cited:\n",
-     "    if _cited and False:  # мутация\n", "unit"),
+     "    if _cited and False:  # мутация\n", "unit", 'if _cited:'),
     ("M9", "сверка цитаты с телом ревизии отключена", "scripts/verify_claim.py",
      "            elif _body is not MISSING and _norm_ws(_quote) not in _norm_ws(_body):\n",
-     "            elif False:  # мутация\n", "unit_live"),
+     "            elif False:  # мутация\n", "unit_live", 'elif _body is not MISSING'),
     # M10 — ровно та поломка, которой 11.11 не было ни в одном тесте: разъехались
     # ДВЕ копии барьера, а исполнялась та, которую тесты не гоняли. Ломается только
     # боевая копия tools/truthgate/, поэтому ловить её может лишь сверка копий.
     ("M10", "копии барьера разъехались (боевая отличается от эталона)",
      "tools/truthgate/verify_claim.py",
      "        if offline and live:\n",
-     "        if offline and live and True:  # мутация\n", "sync"),
+     "        if offline and live and True:  # мутация\n", "sync", 'if offline and live:'),
     # M11 — класс «дыра в списке файлов не блокируется». Эта проверка была НЕДОСТИЖИМА
     # в run_tests.sh до 17.11.2026 (стояла после `exit $fail`), поэтому поломка ниже
     # не ловилась ничем, сколько бы зелёных строк ни печатал набор.
@@ -95,7 +95,7 @@ MUTATIONS = [
     # seq 123808). Теперь глушится само условие: ни сообщения, ни fail=1.
     ("M11", "дыра в списке файлов не блокируется", "scripts/verify.sh",
      'if [ -n "$missing" ]; then',
-     'if false; then  # мутация: дыра не блокируется и не сообщается', "sums"),
+     'if false; then  # мутация: дыра не блокируется и не сообщается', "sums", 'if [ -n "$missing" ]; then'),
 ]
 
 # Эквивалентный мутант обязан ВЫЖИТЬ: иначе мутатор ловит любой diff, а не поломку логики.
@@ -205,7 +205,7 @@ def main():
     invalid = []
     executed = []
     killed_by = []
-    for code_id, desc, rel, old, new, test in MUTATIONS:
+    for code_id, desc, rel, old, new, test, anchor in MUTATIONS:
         if a.only and a.only != code_id:
             continue
         tmp = tempfile.mkdtemp(prefix='mut-%s-' % code_id)
@@ -218,7 +218,26 @@ def main():
                 unapplied.append((code_id, desc, rel))
                 print('  %s %-40s ПОЛОМКА НЕ ПРИМЕНИЛАСЬ (%s)' % (code_id, desc, rel))
                 continue
-            open(path, 'w', encoding='utf-8').write(src.replace(old, new, 1))
+            # 17.11.2026: мутант обязан менять КОД, реализующий заявленный класс, а не
+            # соседний вывод. Повод — M11 первой версии: название обещало «дыра не
+            # блокируется», а менялось только сообщение, `fail=1` оставался (glitchfox,
+            # seq 123806; astranaut01, seq 123808). Якорь должен быть в файле до мутации
+            # и исчезнуть после: иначе мутант не про заявленное и в зачёт не идёт.
+            # Якорь проверяется в границах мутируемого фрагмента: он обязан быть в
+            # заменяемом тексте и обязан отсутствовать в замене. Проверка «по всему
+            # файлу» дала ложный отказ на M9 — та же строка встречается в файле ещё
+            # раз, и мутант объявлялся чужим, хотя менял именно свою ветку.
+            if anchor not in old:
+                unapplied.append((code_id, desc, rel + ' (якорь вне фрагмента)'))
+                print('  %s %-40s ЯКОРЬ ВНЕ МУТИРУЕМОГО ФРАГМЕНТА: %r' % (code_id, desc, anchor))
+                continue
+            mutated = src.replace(old, new, 1)
+            if anchor in new:
+                invalid.append((code_id, desc, 'якорь на месте: %r' % anchor))
+                print('  %s %-40s МУТАНТ НЕ КАСАЕТСЯ ЗАЯВЛЕННОГО (якорь цел: %r)'
+                      % (code_id, desc, anchor))
+                continue
+            open(path, 'w', encoding='utf-8').write(mutated)
             rc, out = run(test, tree)
             executed.append(code_id)
             if rc != 0:
