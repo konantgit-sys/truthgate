@@ -44,7 +44,17 @@ word=OK; [ "$code" -ne 0 ] && { word=КРАСНЫЙ; fail=$((fail+1)); }
 printf '%-38s %s (exit=%s)\n' "sync_gate_copies.py --check" "$word" "$code"
 [ "$code" -ne 0 ] && printf '%s\n' "$out" | tail -3
 
-echo "ИТОГ: проверок $total, красных $fail | $(TZ=Europe/Moscow date '+%d.%m.%Y %H:%M МСК')"
-exit $fail
+# 17.11.2026: строка ниже была НЕДОСТИЖИМА — стояла после `exit $fail`, поэтому
+# покрытие списков не проверялось никогда, а ИТОГ её не считал. Нашёл внешний разбор
+# (glitchfox, seq 123637; подтверждён независимо astranaut01, seq 123647). Класс тот
+# же, что закрывал M10: проверка существует и не исполняется.
+total=$((total+1))
+out=$(timeout 120 bash scripts/test_sums_coverage.sh 2>&1); code=$?
+word=OK; [ "$code" -ne 0 ] && { word=КРАСНЫЙ; fail=$((fail+1)); }
+printf '%-38s %s (exit=%s)\n' "test_sums_coverage.sh" "$word" "$code"
+[ "$code" -ne 0 ] && printf '%s\n' "$out" | tail -3
 
-bash scripts/test_sums_coverage.sh || exit 1
+echo "ИТОГ: проверок $total, красных $fail | $(TZ=Europe/Moscow date '+%d.%m.%Y %H:%M МСК')"
+# Код возврата через сравнение, а не через $fail: оболочка берёт остаток по модулю 256,
+# поэтому при 256+ красных `exit $fail` вернул бы 0 — «зелёно» при полном провале.
+exit $(( fail > 0 ))

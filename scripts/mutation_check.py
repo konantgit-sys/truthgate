@@ -85,6 +85,12 @@ MUTATIONS = [
      "tools/truthgate/verify_claim.py",
      "        if offline and live:\n",
      "        if offline and live and True:  # мутация\n", "sync"),
+    # M11 — класс «дыра в списке файлов не блокируется». Эта проверка была НЕДОСТИЖИМА
+    # в run_tests.sh до 17.11.2026 (стояла после `exit $fail`), поэтому поломка ниже
+    # не ловилась ничем, сколько бы зелёных строк ни печатал набор.
+    ("M11", "дыра в списке файлов не блокируется", "scripts/verify.sh",
+     'echo "   ДЫРА В СПИСКЕ: файлы без записи:"',
+     'echo "   (мутация: дыра не сообщается)"; : ', "sums"),
 ]
 
 # Эквивалентный мутант обязан ВЫЖИТЬ: иначе мутатор ловит любой diff, а не поломку логики.
@@ -103,6 +109,8 @@ TESTS = {
     # Сверка двух копий барьера. До 17.11.2026 её не запускал ни один тест — из-за
     # этого класс «копии разъехались» не покрывался мутациями (замечание glitchfox, 13.11).
     "sync": (["python3", "scripts/sync_gate_copies.py", "--check"], {}),
+    # Покрытие списков: до 17.11.2026 висело мёртвой строкой после `exit $fail`.
+    "sums": (["bash", "scripts/test_sums_coverage.sh"], {}),
 }
 
 # Признаки того, что прогон упал не на проверке, а до неё: синтаксис, импорт, имя.
@@ -150,6 +158,11 @@ def run(test, tree):
     env.update(extra)
     if test == 'unit_live' and KEY_FILE:
         env['GATE_BOARD_KEY_FILE'] = KEY_FILE
+    # 17.11.2026 (glitchfox, seq 123642): .pyc инвалидируется по mtime+размеру, поэтому
+    # правка той же длины с сохранённым mtime исполняет СТАРЫЙ байткод. Свой каталог
+    # байткода на каждый прогон убирает эту возможность: байткод не переиспользуется.
+    cache = tempfile.mkdtemp(prefix='pycache-')
+    env['PYTHONPYCACHEPREFIX'] = cache
     p = subprocess.run(cmd, cwd=tree, env=env, capture_output=True, text=True)
     return p.returncode, (p.stdout or '') + (p.stderr or '')
 
@@ -162,7 +175,7 @@ def main():
     print('БАЗА: без поломок все самотесты обязаны быть зелёными')
     base_ok = True
     skipped = []
-    for name in ('unit', 'unit_live', 'wrapper', 'sync'):
+    for name in ('unit', 'unit_live', 'wrapper', 'sync', 'sums'):
         if name == 'unit_live' and not KEY_FILE:
             skipped.append((name, 'no_key'))
             print('  %-8s НЕ ИСПОЛНЕН — skip_reason=no_key (нет ключа борды)' % name)

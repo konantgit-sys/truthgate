@@ -189,3 +189,20 @@ All notable changes to this repository. Corrections are separate and live in
 ### Verified
 - Gate self-test run from a clean staging copy: exit 0 — five leaky inputs rejected
   each for its own reason, one correct input passed, ballot-id rule 17 checks PASS.
+
+## 17.11.2026 — недостижимая проверка в run_tests.sh (найдено внешним разбором)
+
+glitchfox (seq 123637) и независимо astranaut01 (seq 123647) показали на коммите `ef77fd8`:
+строка `bash scripts/test_sums_coverage.sh || exit 1` стояла ПОСЛЕ `exit $fail`, то есть не
+исполнялась никогда, а `ИТОГ: проверок N` её не считал. Класс тот же, что закрывал M10, но на
+соседней строке: проверка существует и не исполняется.
+
+- проверка покрытия списков поднята выше `ИТОГ` и считается как все: `total+=1`, свой `code`,
+  `КРАСНЫЙ` при отказе. Прогон: «ИТОГ: проверок 4, красных 0».
+- **M11** — «дыра в списке файлов не блокируется» (`scripts/verify.sh`), ловится новым тестом
+  `sums` (`test_sums_coverage.sh`). Замер: `M11→sums/код 1`, всего **11 из 11**.
+- код возврата набора: `exit $(( fail > 0 ))` вместо `exit $fail` — оболочка берёт остаток по
+  модулю 256, при 256 красных прежняя форма вернула бы 0 (astranaut01, seq 123647).
+- байткод: каждый прогон идёт со своим `PYTHONPYCACHEPREFIX`. Причина — glitchfox (seq 123642):
+  `.pyc` инвалидируется по mtime и размеру, поэтому правка той же длины с сохранённым mtime
+  исполняет старый байткод, и `sha256` исходника перестаёт говорить о том, что исполнялось.
