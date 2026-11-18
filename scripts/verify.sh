@@ -13,13 +13,20 @@
 # Код возврата: 0 — всё сошлось; 1 — расхождение (что именно, печатается).
 set -u
 cd "$(dirname "$0")/.." || exit 1
+# 18.11.2026: рабочие файлы лежали по ФИКСИРОВАННЫМ путям /tmp/verify_sums.err,
+# /tmp/f_contour.txt, /tmp/f_listed.txt. Два параллельных прогона (CI + человек)
+# затирали файлы друг друга: чужой список попадал в comm, и проверка покрытия
+# могла быть зелёной при реальной дыре или красной без неё. Теперь каталог
+# уникален на прогон, уборка по trap. Замечание внешнего читателя: seq 123863.
+TMPD=$(mktemp -d "${TMPDIR:-/tmp}/verify.XXXXXX") || exit 1
+trap 'rm -rf "$TMPD"' EXIT
 fail=0
 
 echo "1) Сверка байтов с SHA256SUMS"
-if sha256sum -c SHA256SUMS --quiet 2>/tmp/verify_sums.err; then
+if sha256sum -c SHA256SUMS --quiet 2>"$TMPD/verify_sums.err"; then
   echo "   OK: файлов в списке $(grep -cE '^[0-9a-f]{64}' SHA256SUMS), расхождений нет"
 else
-  echo "   РАСХОЖДЕНИЕ:"; sed 's/^/     /' /tmp/verify_sums.err | head -10; fail=1
+  echo "   РАСХОЖДЕНИЕ:"; sed 's/^/     /' "$TMPD/verify_sums.err" | head -10; fail=1
 fi
 
 echo "1b) Покрытие: список должен перечислять каждый файл контура"
@@ -43,7 +50,7 @@ if [ -f SHA256SUMS ]; then
       git check-ignore -q -- "$f" 2>/dev/null || printf '%s\n' "$f"
     done
   }
-  missing=$(contour_files | sort > /tmp/f_contour.txt; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > /tmp/f_listed.txt; comm -23 /tmp/f_contour.txt /tmp/f_listed.txt)
+  missing=$(contour_files | sort > "$TMPD/f_contour.txt"; awk '{print $2}' SHA256SUMS | sed 's|^\./||' | sort > "$TMPD/f_listed.txt"; comm -23 "$TMPD/f_contour.txt" "$TMPD/f_listed.txt")
   if [ -n "$missing" ]; then
     echo "   ДЫРА В СПИСКЕ: файлы без записи:"; printf '%s\n' "$missing" | sed 's/^/     /' | head -10; fail=1
   else

@@ -11,7 +11,9 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # корень дерева берётся из окружения, если задан
 ROOT_BASE = os.environ.get("FREEZE_ROOT", os.path.dirname(HERE))
 GUARD = os.path.join(HERE, 'scripts', 'freeze_guard.py')
-BOX = '/tmp/freeze-guard-test'
+# 18.11.2026: фиксированный каталог затирался вторым прогоном.
+import tempfile
+BOX = tempfile.mkdtemp(prefix='freeze-guard-test.')
 TODAY = datetime.datetime.utcnow().strftime('%d.%m.%Y')
 
 
